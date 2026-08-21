@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reconciliation App Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 50px; }
+        .upload-box { border: 1px solid #ccc; padding: 20px; border-radius: 8px; max-width: 400px; }
+        button { margin-top: 10px; padding: 8px 16px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<h2>Upload Rithum Data</h2>
+
+<div class="upload-box">
+    <form id="uploadForm">
+        <!-- The name="file" attribute must match your @RequestParam in the controller -->
+        <input type="file" id="rithumFile" name="file" accept=".xlsx" required />
+        <br />
+        <button type="submit">Upload and Parse</button>
+    </form>
+    <p id="statusMessage"></p>
+</div>
+
+<script>
+    document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+        e.preventDefault(); // Prevents the page from refreshing
+
+        const statusMessage = document.getElementById('statusMessage');
+        statusMessage.textContent = 'Uploading...';
+
+        const formData = new FormData();
+        const fileInput = document.getElementById('rithumFile');
+        formData.append('file', fileInput.files[0]);
+
+        try {
+            const response = await fetch('/api/upload/rithum', {
+                method: 'POST',
+                body: formData
+            });
+
+            const resultText = await response.text();
+
+            if (response.ok) {
+                statusMessage.style.color = 'green';
+                statusMessage.textContent = resultText;
+            } else {
+                statusMessage.style.color = 'red';
+                statusMessage.textContent = 'Error: ' + resultText;
+            }
+        } catch (error) {
+            statusMessage.style.color = 'red';
+            statusMessage.textContent = 'Network error occurred.';
+        }
+    });
+</script>
+</body>
+</html>
