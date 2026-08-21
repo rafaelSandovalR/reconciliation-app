@@ -27,7 +27,7 @@ public class ReconciliationRecord {
     private Double paypalFees;
     private Double caFees;
     private Double pickPackFees;
-    private Double shippingCosts;
+    private Double shippingCostsEst;
     private Double rithumProfit;
 
     // Marketplace Data (Initially Null)
