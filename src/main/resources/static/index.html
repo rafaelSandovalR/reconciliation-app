@@ -24,6 +24,12 @@
     <p id="statusMessage"></p>
 </div>
 
+<div class="upload-box">
+    <h2>Export Master Data</h2>
+    <p>Download the current database records to Excel.</p>
+    <button onclick="window.location.href='/api/upload/export'">Download Master Report</button>
+</div>
+
 <script>
     document.getElementById('uploadForm').addEventListener('submit', async function(e) {
         e.preventDefault(); // Prevents the page from refreshing

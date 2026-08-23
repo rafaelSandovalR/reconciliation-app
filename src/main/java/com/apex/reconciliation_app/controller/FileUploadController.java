@@ -1,8 +1,12 @@
 package com.apex.reconciliation_app.controller;
 
+import com.apex.reconciliation_app.service.ExportService;
 import com.apex.reconciliation_app.service.RithumParserService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -13,6 +17,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class FileUploadController {
 
     private final RithumParserService rithumParserService;
+    private final ExportService exportService;
 
     @PostMapping("/rithum")
     public ResponseEntity uploadRithumFile(@RequestParam("file")MultipartFile file) {
@@ -28,5 +33,16 @@ public class FileUploadController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Could not process the file: " + e.getMessage());
         }
+    }
+
+    @GetMapping("/export")
+    public ResponseEntity<InputStreamResource> downloadReport() {
+
+        InputStreamResource file = new InputStreamResource(exportService.exportToExcel());
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=reconciliation_master_report.xlsx")
+                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(file);
     }
 }
