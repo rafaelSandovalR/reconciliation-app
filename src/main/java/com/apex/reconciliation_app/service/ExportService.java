@@ -38,8 +38,33 @@ public class ExportService {
             headerRow.createCell(4).setCellValue("Order Date");
             headerRow.createCell(5).setCellValue("Account");
             headerRow.createCell(6).setCellValue("Salesperson");
+
             headerRow.createCell(7).setCellValue("Total Less Tax");
             headerRow.createCell(8).setCellValue("Total Seller Cost");
+            headerRow.createCell(9).setCellValue("Site Fees");
+            headerRow.createCell(10).setCellValue("PayPal Fees");
+            headerRow.createCell(11).setCellValue("CA Fees");
+            headerRow.createCell(12).setCellValue("Pickpack Fees");
+            headerRow.createCell(13).setCellValue("Shipping Costs Est");
+            headerRow.createCell(14).setCellValue("Rithum Profit");
+
+            headerRow.createCell(15).setCellValue("SiteOrderAmount");
+            headerRow.createCell(16).setCellValue("SiteOrderFee");
+            headerRow.createCell(17).setCellValue("SiteOrderFees1");
+            headerRow.createCell(18).setCellValue("SiteOrderFees2");
+            headerRow.createCell(19).setCellValue("SiteOrderFees3");
+            headerRow.createCell(20).setCellValue("SiteOrderFees4");
+            headerRow.createCell(21).setCellValue("ActualProfit");
+            headerRow.createCell(22).setCellValue("ProfitDiff");
+            headerRow.createCell(23).setCellValue("Return");
+            headerRow.createCell(24).setCellValue("AmountRefunded");
+            headerRow.createCell(25).setCellValue("ReturnShipping");
+            headerRow.createCell(26).setCellValue("ReturnFee1");
+            headerRow.createCell(27).setCellValue("ReturnFee2");
+            headerRow.createCell(28).setCellValue("ReturnFee3");
+            headerRow.createCell(29).setCellValue("ReturnFee4");
+
+            headerRow.createCell(29).setCellValue("Notes");
 
 
             // 4. Loop through the database records and populate the rows
@@ -59,6 +84,12 @@ public class ExportService {
                 // Numeric cells
                 row.createCell(7).setCellValue(record.getTotalLessTax() != null ? record.getTotalLessTax() : 0.0);
                 row.createCell(8).setCellValue(record.getTotalSellerCost() != null ? record.getTotalSellerCost() : 0.0);
+                row.createCell(9).setCellValue(record.getSiteFees() != null ? record.getSiteFees() : 0.0);
+                row.createCell(10).setCellValue(record.getPaypalFees() != null ? record.getPaypalFees() : 0.0);
+                row.createCell(11).setCellValue(record.getCaFees() != null ? record.getCaFees() : 0.0);
+                row.createCell(12).setCellValue(record.getPickPackFees() != null ? record.getPickPackFees() : 0.0);
+                row.createCell(13).setCellValue(record.getShippingCostsEst() != null ? record.getShippingCostsEst() : 0.0);
+                row.createCell(14).setCellValue(record.getRithumProfit() != null ? record.getRithumProfit() : 0.0);
             }
 
             // 5. Write the workbook to our byte stream and return it.

@@ -29,8 +29,8 @@ public class RithumParserService {
                 if (row == null) continue;
 
                 // 1. Grab the critical matching data first
-                String siteOrderId = getStringValue(row.getCell(61));
-                String sku = getStringValue(row.getCell(4));
+                String siteOrderId = getStringValue(row.getCell(60));
+                String sku = getStringValue(row.getCell(3));
 
                 if (siteOrderId.isEmpty() || sku.isEmpty()) continue;
 
@@ -39,12 +39,12 @@ public class RithumParserService {
                 record.setCompositeId(siteOrderId + "-" + sku);
 
                 // 3. Fill in the Rithum base data
-                record.setSiteName(getStringValue(row.getCell(2)));
+                record.setSiteName(getStringValue(row.getCell(1)));
                 record.setSku(sku);
                 record.setSiteOrderId(siteOrderId);
-                record.setOrderDate(getStringValue(row.getCell(6)));
-                record.setAccount(getStringValue(row.getCell(11)));
-                record.setSalesperson(getStringValue(row.getCell(86)));
+                record.setOrderDate(getStringValue(row.getCell(5)));
+                record.setAccount(getStringValue(row.getCell(10)));
+                record.setSalesperson(getStringValue(row.getCell(85)));
 
                 // 4. Fill in the financial data using the Double helper
                 record.setTotalLessTax(getDoubleValue(row.getCell(76)));
@@ -70,8 +70,15 @@ public class RithumParserService {
         if (cell == null) return "";
         return switch (cell.getCellType()) {
             case STRING -> cell.getStringCellValue().trim();
-            case NUMERIC -> // Cast as long to prevent it from turning into scientific notation
-                    String.valueOf((long) cell.getNumericCellValue());
+            case NUMERIC -> {
+                if (DateUtil.isCellDateFormatted(cell)) {
+                    java.text.SimpleDateFormat dateFormat = new java.text.SimpleDateFormat("MM/dd/yyyy HH:mm");
+                    yield dateFormat.format(cell.getDateCellValue());
+                } else {
+                    // Cast as long to prevent it from turning into scientific notation
+                    yield String.valueOf((long) cell.getNumericCellValue());
+                }
+            }
             case BOOLEAN -> String.valueOf(cell.getBooleanCellValue());
             default -> "";
         };
