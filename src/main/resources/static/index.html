@@ -3,64 +3,98 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reconciliation App Test</title>
+    <title>Reconciliation Dashboard</title>
     <style>
-        body { font-family: Arial, sans-serif; padding: 50px; }
-        .upload-box { border: 1px solid #ccc; padding: 20px; border-radius: 8px; max-width: 400px; }
-        button { margin-top: 10px; padding: 8px 16px; cursor: pointer; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 40px; background-color: #f4f7f6; color: #333; }
+        h1 { text-align: center; margin-bottom: 40px; color: #2c3e50; }
+
+        .dashboard-container { display: flex; flex-direction: column; gap: 30px; max-width: 800px; margin: 0 auto; }
+        .card { background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-left: 5px solid #3498db; }
+        .card.export { border-left-color: #27ae60; }
+
+        .card h2 { margin-top: 0; font-size: 1.4rem; color: #2c3e50; }
+        .card p { color: #7f8c8d; margin-bottom: 15px; font-size: 0.95rem; }
+
+        input[type="file"] { margin-bottom: 15px; display: block; }
+        button { background-color: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 1rem; font-weight: bold; transition: background 0.3s; }
+        button:hover { background-color: #2980b9; }
+        .export button { background-color: #27ae60; }
+        .export button:hover { background-color: #219653; }
+
+        .status { margin-top: 15px; font-weight: bold; font-size: 0.9rem; }
     </style>
 </head>
 <body>
 
-<h2>Upload Rithum Data</h2>
+<h1>Reconciliation Dashboard</h1>
 
-<div class="upload-box">
-    <form id="uploadForm">
-        <!-- The name="file" attribute must match your @RequestParam in the controller -->
-        <input type="file" id="rithumFile" name="file" accept=".xlsx" required />
-        <br />
-        <button type="submit">Upload and Parse</button>
-    </form>
-    <p id="statusMessage"></p>
-</div>
+<div class="dashboard-container">
 
-<div class="upload-box">
-    <h2>Export Master Data</h2>
-    <p>Download the current database records to Excel.</p>
-    <button onclick="window.location.href='/api/upload/export'">Download Master Report</button>
+    <!-- STEP 1: RITHUM -->
+    <div class="card">
+        <h2>Step 1: Base Rithum Data</h2>
+        <p>Upload the master Rithum report to generate the initial database records.</p>
+        <form id="rithumForm">
+            <input type="file" id="rithumFile" accept=".xlsx" required />
+            <button type="submit">Upload Rithum File</button>
+        </form>
+        <div id="rithumStatus" class="status"></div>
+    </div>
+
+    <!-- STEP 2: WALMART -->
+    <div class="card">
+        <h2>Step 2: Walmart Ledger</h2>
+        <p>Upload the Walmart transactional ledger to update existing records with exact fees and refunds.</p>
+        <form id="walmartForm">
+            <input type="file" id="walmartFile" accept=".xlsx" required />
+            <button type="submit">Upload Walmart File</button>
+        </form>
+        <div id="walmartStatus" class="status"></div>
+    </div>
+
+    <!-- STEP 3: EXPORT -->
+    <div class="card export">
+        <h2>Step 3: Master Export</h2>
+        <p>Download the fully reconciled master spreadsheet.</p>
+        <button onclick="window.location.href='/api/upload/export'">Download Master Report</button>
+    </div>
+
 </div>
 
 <script>
-    document.getElementById('uploadForm').addEventListener('submit', async function(e) {
-        e.preventDefault(); // Prevents the page from refreshing
+    // Reusable function to handle uploads
+    async function handleUpload(formId, fileInputId, statusId, endpoint) {
+        document.getElementById(formId).addEventListener('submit', async function(e) {
+            e.preventDefault();
 
-        const statusMessage = document.getElementById('statusMessage');
-        statusMessage.textContent = 'Uploading...';
+            const statusEl = document.getElementById(statusId);
+            statusEl.textContent = 'Uploading and processing...';
+            statusEl.style.color = '#f39c12';
 
-        const formData = new FormData();
-        const fileInput = document.getElementById('rithumFile');
-        formData.append('file', fileInput.files[0]);
+            const formData = new FormData();
+            formData.append('file', document.getElementById(fileInputId).files[0]);
 
-        try {
-            const response = await fetch('/api/upload/rithum', {
-                method: 'POST',
-                body: formData
-            });
+            try {
+                const response = await fetch(endpoint, { method: 'POST', body: formData });
+                const resultText = await response.text();
 
-            const resultText = await response.text();
-
-            if (response.ok) {
-                statusMessage.style.color = 'green';
-                statusMessage.textContent = resultText;
-            } else {
-                statusMessage.style.color = 'red';
-                statusMessage.textContent = 'Error: ' + resultText;
+                if (response.ok) {
+                    statusEl.style.color = '#27ae60';
+                    statusEl.textContent = '✓ ' + resultText;
+                } else {
+                    statusEl.style.color = '#c0392b';
+                    statusEl.textContent = '✗ Error: ' + resultText;
+                }
+            } catch (error) {
+                statusEl.style.color = '#c0392b';
+                statusEl.textContent = '✗ Network error occurred.';
             }
-        } catch (error) {
-            statusMessage.style.color = 'red';
-            statusMessage.textContent = 'Network error occurred.';
-        }
-    });
+        });
+    }
+
+    // Wire up the forms to their specific endpoints
+    handleUpload('rithumForm', 'rithumFile', 'rithumStatus', '/api/upload/rithum');
+    handleUpload('walmartForm', 'walmartFile', 'walmartStatus', '/api/upload/walmart');
 </script>
 </body>
 </html>
