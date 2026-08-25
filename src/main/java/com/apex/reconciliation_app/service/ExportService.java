@@ -54,17 +54,21 @@ public class ExportService {
             headerRow.createCell(18).setCellValue("SiteOrderFees2");
             headerRow.createCell(19).setCellValue("SiteOrderFees3");
             headerRow.createCell(20).setCellValue("SiteOrderFees4");
-            headerRow.createCell(21).setCellValue("ActualProfit");
-            headerRow.createCell(22).setCellValue("ProfitDiff");
-            headerRow.createCell(23).setCellValue("Return");
-            headerRow.createCell(24).setCellValue("AmountRefunded");
-            headerRow.createCell(25).setCellValue("ReturnShipping");
-            headerRow.createCell(26).setCellValue("ReturnFee1");
-            headerRow.createCell(27).setCellValue("ReturnFee2");
-            headerRow.createCell(28).setCellValue("ReturnFee3");
-            headerRow.createCell(29).setCellValue("ReturnFee4");
 
-            headerRow.createCell(29).setCellValue("Notes");
+            headerRow.createCell(21).setCellValue("ActualShippingCosts");
+            headerRow.createCell(22).setCellValue("ShippingAdjustments");
+
+            headerRow.createCell(23).setCellValue("ActualProfit");
+            headerRow.createCell(24).setCellValue("ProfitDiff");
+            headerRow.createCell(25).setCellValue("Return");
+            headerRow.createCell(26).setCellValue("AmountRefunded");
+            headerRow.createCell(27).setCellValue("ReturnShipping");
+            headerRow.createCell(28).setCellValue("ReturnFee1");
+            headerRow.createCell(29).setCellValue("ReturnFee2");
+            headerRow.createCell(30).setCellValue("ReturnFee3");
+            headerRow.createCell(31).setCellValue("ReturnFee4");
+
+            headerRow.createCell(32).setCellValue("Notes");
 
 
             // 4. Loop through the database records and populate the rows
@@ -90,6 +94,29 @@ public class ExportService {
                 row.createCell(12).setCellValue(record.getPickPackFees() != null ? record.getPickPackFees() : 0.0);
                 row.createCell(13).setCellValue(record.getShippingCostsEst() != null ? record.getShippingCostsEst() : 0.0);
                 row.createCell(14).setCellValue(record.getRithumProfit() != null ? record.getRithumProfit() : 0.0);
+
+                row.createCell(15).setCellValue(record.getSiteOrderAmount() != null ? record.getSiteOrderAmount() : 0.0);
+                row.createCell(16).setCellValue(record.getSiteOrderFee() != null ? record.getSiteOrderFee() : 0.0);
+                row.createCell(17).setCellValue(record.getSiteOrderOtherFees1() != null ? record.getSiteOrderOtherFees1() : 0.0);
+                row.createCell(18).setCellValue(record.getSiteOrderOtherFees2() != null ? record.getSiteOrderOtherFees2() : 0.0);
+                row.createCell(19).setCellValue(record.getSiteOrderOtherFees3() != null ? record.getSiteOrderOtherFees3() : 0.0);
+                row.createCell(20).setCellValue(record.getSiteOrderOtherFees4() != null ? record.getSiteOrderOtherFees4() : 0.0);
+
+                row.createCell(21).setCellValue(record.getActualShippingCosts() != null ? record.getActualShippingCosts() : 0.0);
+                row.createCell(22).setCellValue(record.getShippingAdjustments() != null ? record.getShippingAdjustments(): 0.0);
+
+                row.createCell(23).setCellValue(record.getActualProfit() != null ? record.getActualProfit() : 0.0);
+                row.createCell(24).setCellValue(record.getProfitDiff() != null ? record.getProfitDiff() : 0.0);
+                row.createCell(25).setCellValue(record.getReturnStatus() != null ? record.getReturnStatus() : "");
+                row.createCell(26).setCellValue(record.getAmountRefunded() != null ? record.getAmountRefunded() : 0.0);
+                row.createCell(27).setCellValue(record.getReturnShipping() != null ? record.getReturnShipping() : 0.0);
+                row.createCell(28).setCellValue(record.getReturnFee1() != null ? record.getReturnFee1() : 0.0);
+                row.createCell(28).setCellValue(record.getReturnFee2() != null ? record.getReturnFee2() : 0.0);
+                row.createCell(28).setCellValue(record.getReturnFee3() != null ? record.getReturnFee3() : 0.0);
+                row.createCell(28).setCellValue(record.getReturnFee4() != null ? record.getReturnFee4() : 0.0);
+
+                row.createCell(28).setCellValue(record.getNotes() != null ? record.getNotes() : "");
+
             }
 
             // 5. Write the workbook to our byte stream and return it.
