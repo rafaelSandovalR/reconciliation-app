@@ -26,12 +26,11 @@ public class WalmartParserService {
                 if (row == null) continue;
 
                 // 1. Map based on Walmart's structure
-                String transactionType = getStringValue(row.getCell(2));    // Column C
-                String transactionDesc = getStringValue(row.getCell(3));    // Column D
-                String siteOrderId = getStringValue(row.getCell(6));        // Column G (Purchase Order #)
-                Double amount = getDoubleValue(row.getCell(8));             // Column I (Amount)
-                String amountType = getStringValue(row.getCell(9));         // Column J (Amount Type)
-                String sku = getStringValue(row.getCell(14));               // Column O (Partner Item Id)
+                String transactionDesc = getStringValue(row.getCell(3)).trim().toUpperCase();   // Column D
+                String siteOrderId = getStringValue(row.getCell(6)).trim().toUpperCase();       // Column G (Purchase Order #)
+                double amount = getDoubleValue(row.getCell(8)) * -1;                            // Column I (Amount)
+                String amountType = getStringValue(row.getCell(9)).trim().toUpperCase();        // Column J (Amount Type)
+                String sku = getStringValue(row.getCell(14)).trim().toUpperCase();              // Column O (Partner Item Id)
 
                 if (siteOrderId.isEmpty() || sku.isEmpty()) continue;
                 String compositeId = siteOrderId + "-" + sku;
@@ -50,21 +49,22 @@ public class WalmartParserService {
                 }
 
                 // 3. Route the amount to the correct field based on ledger hierarchy
-                if ("Sale".equalsIgnoreCase(transactionType) && "Purchase".equalsIgnoreCase(transactionDesc)) {
-                    if ("Product Price".equalsIgnoreCase(amountType)) {
-                        record.setSiteOrderAmount((record.getSiteOrderAmount() != null ? record.getSiteOrderAmount() : 0.0) + amount);
-                    } else if ("Commission on Product".equalsIgnoreCase(amountType)) {
-                        // INVERTED: Commission
-                        record.setSiteOrderFee((record.getSiteOrderFee() != null ? record.getSiteOrderFee() : 0.0) + (amount * -1));
+                switch (transactionDesc) {
+                    case ("PURCHASE") -> {
+                        switch (amountType) {
+                            case ("PRODUCT PRICE") -> record.setSiteOrderAmount((record.getSiteOrderAmount() != null ? record.getSiteOrderAmount() : 0.0) + (amount * -1));
+                            case ("COMMISSION ON PRODUCT") -> record.setSiteOrderFee((record.getSiteOrderFee() != null ? record.getSiteOrderFee() : 0.0) + amount);
+                            case ("TOTAL WALMART FUNDED SAVINGS") -> record.setSiteOrderOtherFees1((record.getSiteOrderOtherFees1() != null ? record.getSiteOrderOtherFees1() : 0.0) + amount);
+                        }
                     }
-                } else if ("Refund".equalsIgnoreCase(transactionType) && "Return Refund".equalsIgnoreCase(transactionDesc)) {
-                    if ("Product Price".equalsIgnoreCase(amountType)) {
-                        // INVERTED: AmountRefunded
-                        record.setAmountRefunded((record.getAmountRefunded() != null ? record.getAmountRefunded() : 0.0) + (amount * -1));
-                    } else if ("Commission on Product".equalsIgnoreCase(amountType)) {
-                        // INVERTED: Commission Refund
-                        record.setReturnFee1((record.getReturnFee1() != null ? record.getReturnFee1() : 0.0) + (amount * -1));
+                    case ("RETURN REFUND") -> {
+                        switch (amountType) {
+                            case ("PRODUCT PRICE") -> record.setAmountRefunded((record.getAmountRefunded() != null ? record.getAmountRefunded() : 0.0) + amount);
+                            case ("COMMISSION ON PRODUCT") -> record.setReturnFee1((record.getReturnFee1() != null ? record.getReturnFee1() : 0.0) + amount);
+                            case ("TOTAL WALMART FUNDED SAVINGS") -> record.setReturnFee2((record.getReturnFee2() != null ? record.getReturnFee2() : 0.0) + amount);
+                        }
                     }
+                    case ("WALMART RETURN SHIPPING CHARGE") -> record.setReturnShipping((record.getReturnShipping() != null ? record.getReturnShipping() : 0.0) + amount);
                 }
             }
             // 4. Save all the updated records back to the database.
