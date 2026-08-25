@@ -60,6 +60,8 @@ public class WalmartParserService {
                         }
                     }
                     case ("RETURN REFUND") -> {
+                        record.setReturnStatus("Yes");
+
                         switch (amountType) {
                             case ("PRODUCT PRICE") -> record.setAmountRefunded((record.getAmountRefunded() != null ? record.getAmountRefunded() : 0.0) + amount);
                             case ("COMMISSION ON PRODUCT") -> record.setReturnFee1((record.getReturnFee1() != null ? record.getReturnFee1() : 0.0) + amount);
@@ -69,6 +71,15 @@ public class WalmartParserService {
                     case ("WALMART RETURN SHIPPING CHARGE") -> record.setReturnShipping((record.getReturnShipping() != null ? record.getReturnShipping() : 0.0) + amount);
                     case ("CUSTOMER RETURN REVERSAL") -> record.setReturnFee2((record.getReturnFee2() != null ? record.getReturnFee2() : 0.0) + amount);
                     case ("WALMART FAILED RETURN DELIVERY PROCESS CHARGE") -> record.setReturnFee3((record.getReturnFee3() != null ? record.getReturnFee3() : 0.0) + amount);
+                }
+            }
+
+            // POST PROCESSING PASS
+            for (ReconciliationRecord record : recordsToUpdate.values()) {
+                if (record.getReturnFee1() != null && record.getReturnFee1() < 0) {
+                    double originalCommission = record.getSiteOrderFee() != null ? record.getSiteOrderFee() : 0.0;
+                    double unrefundedDifference = originalCommission + record.getReturnFee1();
+                    record.setReturnFee1(unrefundedDifference);
                 }
             }
 
