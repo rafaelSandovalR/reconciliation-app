@@ -2,6 +2,7 @@ package com.apex.reconciliation_app.service;
 
 import com.apex.reconciliation_app.model.ReconciliationRecord;
 import com.apex.reconciliation_app.repository.ReconciliationRepository;
+import com.apex.reconciliation_app.util.ExcelUtils;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -26,11 +27,11 @@ public class WalmartParserService {
                 if (row == null) continue;
 
                 // 1. Map based on Walmart's structure
-                String transactionDesc = getStringValue(row.getCell(3)).trim().toUpperCase();   // Column D
-                String siteOrderId = getStringValue(row.getCell(6)).trim().toUpperCase();       // Column G (Purchase Order #)
-                double amount = getDoubleValue(row.getCell(8)) * -1;                            // Column I (Amount)
-                String amountType = getStringValue(row.getCell(9)).trim().toUpperCase();        // Column J (Amount Type)
-                String sku = getStringValue(row.getCell(14)).trim().toUpperCase();              // Column O (Partner Item Id)
+                String transactionDesc = ExcelUtils.getStringValue(row.getCell(3)).trim().toUpperCase();   // Column D
+                String siteOrderId = ExcelUtils.getStringValue(row.getCell(6)).trim().toUpperCase();       // Column G (Purchase Order #)
+                double amount = ExcelUtils.getDoubleValue(row.getCell(8)) * -1;                            // Column I (Amount)
+                String amountType = ExcelUtils.getStringValue(row.getCell(9)).trim().toUpperCase();        // Column J (Amount Type)
+                String sku = ExcelUtils.getStringValue(row.getCell(14)).trim().toUpperCase();              // Column O (Partner Item Id)
 
                 if (siteOrderId.isEmpty() || sku.isEmpty()) continue;
                 String compositeId = siteOrderId + "-" + sku;
@@ -90,39 +91,5 @@ public class WalmartParserService {
         } catch (Exception e) {
             throw new RuntimeException("Failed to parse Walmart Excel file: " + e.getMessage());
         }
-    }
-
-    // --- SAFE DATA EXTRACTION HELPERS ---
-    // TODO: refactor into a shared 'ExcelUtils' because this is repeated in other Service
-    private String getStringValue(Cell cell) {
-        if (cell == null) return "";
-        return switch (cell.getCellType()) {
-            case STRING -> cell.getStringCellValue().trim();
-            case NUMERIC -> {
-                if (DateUtil.isCellDateFormatted(cell)) {
-                    java.text.SimpleDateFormat dateFormat = new java.text.SimpleDateFormat("MM/dd/yyyy HH:mm");
-                    yield dateFormat.format(cell.getDateCellValue());
-                } else {
-                    yield String.valueOf((long) cell.getNumericCellValue());
-                }
-            }
-            case BOOLEAN -> String.valueOf(cell.getBooleanCellValue());
-            default -> "";
-        };
-    }
-
-    private Double getDoubleValue(Cell cell) {
-        if (cell == null) return 0.0;
-        return switch (cell.getCellType()) {
-            case NUMERIC -> cell.getNumericCellValue();
-            case STRING -> {
-                try {
-                    yield Double.parseDouble(cell.getStringCellValue().replace("$", "").trim());
-                } catch (NumberFormatException e) {
-                    yield 0.0;
-                }
-            }
-            default -> 0.0;
-        };
     }
 }

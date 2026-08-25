@@ -1,0 +1,45 @@
+package com.apex.reconciliation_app.util;
+
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.DateUtil;
+
+public class ExcelUtils {
+
+    // Private constructor to prevent accidental instantiation
+    private ExcelUtils() {
+        throw new IllegalStateException("Utility class");
+    }
+
+    // --- SAFE DATA EXTRACTION HELPERS ---
+    public static String getStringValue(Cell cell) {
+        if (cell == null) return "";
+        return switch (cell.getCellType()) {
+            case STRING -> cell.getStringCellValue().trim();
+            case NUMERIC -> {
+                if (DateUtil.isCellDateFormatted(cell)) {
+                    java.text.SimpleDateFormat dateFormat = new java.text.SimpleDateFormat("MM/dd/yyyy HH:mm");
+                    yield dateFormat.format(cell.getDateCellValue());
+                } else {
+                    yield String.valueOf((long) cell.getNumericCellValue());
+                }
+            }
+            case BOOLEAN -> String.valueOf(cell.getBooleanCellValue());
+            default -> "";
+        };
+    }
+
+    public static Double getDoubleValue(Cell cell) {
+        if (cell == null) return 0.0;
+        return switch (cell.getCellType()) {
+            case NUMERIC -> cell.getNumericCellValue();
+            case STRING -> {
+                try {
+                    yield Double.parseDouble(cell.getStringCellValue().replace("$", "").trim());
+                } catch (NumberFormatException e) {
+                    yield 0.0;
+                }
+            }
+            default -> 0.0;
+        };
+    }
+}
