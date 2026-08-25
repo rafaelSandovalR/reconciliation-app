@@ -38,6 +38,9 @@ public class ReconciliationRecord {
     private Double siteOrderOtherFees3;
     private Double siteOrderOtherFees4;
 
+    private Double actualShippingCosts;
+    private Double shippingAdjustments;
+
     private Double actualProfit;
     private Double profitDiff;
 
