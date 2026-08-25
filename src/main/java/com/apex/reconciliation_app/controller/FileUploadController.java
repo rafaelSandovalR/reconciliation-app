@@ -2,7 +2,9 @@ package com.apex.reconciliation_app.controller;
 
 import com.apex.reconciliation_app.service.ExportService;
 import com.apex.reconciliation_app.service.RithumParserService;
+import com.apex.reconciliation_app.service.WalmartParserService;
 import lombok.RequiredArgsConstructor;
+import org.apache.coyote.Response;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -18,9 +20,10 @@ public class FileUploadController {
 
     private final RithumParserService rithumParserService;
     private final ExportService exportService;
+    private final WalmartParserService walmartParserService;
 
     @PostMapping("/rithum")
-    public ResponseEntity uploadRithumFile(@RequestParam("file")MultipartFile file) {
+    public ResponseEntity uploadRithumFile(@RequestParam("file") MultipartFile file) {
 
         if (file.isEmpty()) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Please select a file to upload.");
@@ -29,6 +32,21 @@ public class FileUploadController {
         try {
             rithumParserService.parseAndSaveInputStream(file.getInputStream());
             return ResponseEntity.ok("Rithum file uploaded and processed successfully!");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Could not process the file: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/walmart")
+    public ResponseEntity uploadWalmartFile(@RequestParam("file") MultipartFile file) {
+        if (file.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Please select a file to upload.");
+        }
+
+        try {
+            walmartParserService.parseAndUpdate(file.getInputStream());
+            return ResponseEntity.ok("Walmart file uploaded and processed successfully!");
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Could not process the file: " + e.getMessage());
