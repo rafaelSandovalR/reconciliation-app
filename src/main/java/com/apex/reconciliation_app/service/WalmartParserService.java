@@ -55,6 +55,8 @@ public class WalmartParserService {
                             case ("PRODUCT PRICE") -> record.setSiteOrderAmount((record.getSiteOrderAmount() != null ? record.getSiteOrderAmount() : 0.0) + (amount * -1));
                             case ("COMMISSION ON PRODUCT") -> record.setSiteOrderFee((record.getSiteOrderFee() != null ? record.getSiteOrderFee() : 0.0) + amount);
                             case ("TOTAL WALMART FUNDED SAVINGS") -> record.setSiteOrderOtherFees1((record.getSiteOrderOtherFees1() != null ? record.getSiteOrderOtherFees1() : 0.0) + amount);
+                            case ("PROMO CODE") -> record.setSiteOrderOtherFees2((record.getSiteOrderOtherFees2() != null ? record.getSiteOrderOtherFees2() : 0.0) + amount);
+                            case ("OTHER TAX (FEES)") -> record.setSiteOrderOtherFees3((record.getSiteOrderOtherFees3() != null ? record.getSiteOrderOtherFees3() : 0.0) + amount);
                         }
                     }
                     case ("RETURN REFUND") -> {
@@ -65,8 +67,11 @@ public class WalmartParserService {
                         }
                     }
                     case ("WALMART RETURN SHIPPING CHARGE") -> record.setReturnShipping((record.getReturnShipping() != null ? record.getReturnShipping() : 0.0) + amount);
+                    case ("CUSTOMER RETURN REVERSAL") -> record.setReturnFee2((record.getReturnFee2() != null ? record.getReturnFee2() : 0.0) + amount);
+                    case ("WALMART FAILED RETURN DELIVERY PROCESS CHARGE") -> record.setReturnFee3((record.getReturnFee3() != null ? record.getReturnFee3() : 0.0) + amount);
                 }
             }
+
             // 4. Save all the updated records back to the database.
             repository.saveAll(recordsToUpdate.values());
             System.out.println("Successfully aggregated and updated " + recordsToUpdate.size() + " Walmart records.");

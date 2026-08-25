@@ -111,11 +111,11 @@ public class ExportService {
                 row.createCell(26).setCellValue(record.getAmountRefunded() != null ? record.getAmountRefunded() : 0.0);
                 row.createCell(27).setCellValue(record.getReturnShipping() != null ? record.getReturnShipping() : 0.0);
                 row.createCell(28).setCellValue(record.getReturnFee1() != null ? record.getReturnFee1() : 0.0);
-                row.createCell(28).setCellValue(record.getReturnFee2() != null ? record.getReturnFee2() : 0.0);
-                row.createCell(28).setCellValue(record.getReturnFee3() != null ? record.getReturnFee3() : 0.0);
-                row.createCell(28).setCellValue(record.getReturnFee4() != null ? record.getReturnFee4() : 0.0);
+                row.createCell(29).setCellValue(record.getReturnFee2() != null ? record.getReturnFee2() : 0.0);
+                row.createCell(30).setCellValue(record.getReturnFee3() != null ? record.getReturnFee3() : 0.0);
+                row.createCell(31).setCellValue(record.getReturnFee4() != null ? record.getReturnFee4() : 0.0);
 
-                row.createCell(28).setCellValue(record.getNotes() != null ? record.getNotes() : "");
+                row.createCell(32).setCellValue(record.getNotes() != null ? record.getNotes() : "");
 
             }
 
