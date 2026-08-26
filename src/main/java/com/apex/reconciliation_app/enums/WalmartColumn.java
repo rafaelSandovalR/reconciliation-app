@@ -5,11 +5,12 @@ import lombok.Getter;
 
 @Getter
 public enum WalmartColumn {
-    TRANSACTION_DESC("Transaction Description"),    // Column D
-    PURCHASE_ORDER("Purchase Order #"),      // Column G
-    AMOUNT("Amount"),              // Column I
-    AMOUNT_TYPE("Amount Type"),         // Column J
-    SKU("Partner Item Id");                // Column O
+    TRANSACTION_TYPE("Transaction Type"),
+    TRANSACTION_DESC("Transaction Description"),
+    PURCHASE_ORDER("Purchase Order #"),
+    AMOUNT("Amount"),
+    AMOUNT_TYPE("Amount Type"),
+    SKU("Partner Item Id");
 
     private final String headerName;
 

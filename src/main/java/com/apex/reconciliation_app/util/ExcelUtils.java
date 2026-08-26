@@ -2,6 +2,10 @@ package com.apex.reconciliation_app.util;
 
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.DateUtil;
+import org.apache.poi.ss.usermodel.Row;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class ExcelUtils {
 
@@ -41,5 +45,18 @@ public class ExcelUtils {
             }
             default -> 0.0;
         };
+    }
+
+    public static Map<String, Integer> getHeaderMap(Row headerRow) {
+        Map<String, Integer> headerMap = new HashMap<>();
+
+        for (Cell cell: headerRow) {
+            String headerName = getStringValue(cell).trim().toUpperCase();
+            if (!headerName.isEmpty()) {
+                headerMap.put(headerName, cell.getColumnIndex());
+            }
+        }
+
+        return headerMap;
     }
 }
