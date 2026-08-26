@@ -1,6 +1,7 @@
 package com.apex.reconciliation_app.service;
 
 
+import com.apex.reconciliation_app.enums.RithumColumn;
 import com.apex.reconciliation_app.model.ReconciliationRecord;
 import com.apex.reconciliation_app.repository.ReconciliationRepository;
 import com.apex.reconciliation_app.util.ExcelUtils;
@@ -30,8 +31,8 @@ public class RithumParserService {
                 if (row == null) continue;
 
                 // 1. Grab the critical matching data first
-                String siteOrderId = ExcelUtils.getStringValue(row.getCell(60));
-                String sku = ExcelUtils.getStringValue(row.getCell(3));
+                String siteOrderId = ExcelUtils.getStringValue(row.getCell(RithumColumn.SITE_ORDER_ID.getIndex()));
+                String sku = ExcelUtils.getStringValue(row.getCell(RithumColumn.SKU.getIndex()));
 
                 if (siteOrderId.isEmpty() || sku.isEmpty()) continue;
 
@@ -40,22 +41,22 @@ public class RithumParserService {
                 record.setCompositeId(siteOrderId + "-" + sku);
 
                 // 3. Fill in the Rithum base data
-                record.setSiteName(ExcelUtils.getStringValue(row.getCell(1)));
+                record.setSiteName(ExcelUtils.getStringValue(row.getCell(RithumColumn.SITE_NAME.getIndex())));
                 record.setSku(sku);
                 record.setSiteOrderId(siteOrderId);
-                record.setOrderDate(ExcelUtils.getStringValue(row.getCell(5)));
-                record.setAccount(ExcelUtils.getStringValue(row.getCell(10)));
-                record.setSalesperson(ExcelUtils.getStringValue(row.getCell(85)));
+                record.setOrderDate(ExcelUtils.getStringValue(row.getCell(RithumColumn.ORDER_DATE.getIndex())));
+                record.setAccount(ExcelUtils.getStringValue(row.getCell(RithumColumn.ACCOUNT.getIndex())));
+                record.setSalesperson(ExcelUtils.getStringValue(row.getCell(RithumColumn.SALESPERSON.getIndex())));
 
                 // 4. Fill in the financial data using the Double helper
-                record.setTotalLessTax(ExcelUtils.getDoubleValue(row.getCell(76)));
-                record.setTotalSellerCost(ExcelUtils.getDoubleValue(row.getCell(77)));
-                record.setSiteFees(ExcelUtils.getDoubleValue(row.getCell(78)));
-                record.setPaypalFees(ExcelUtils.getDoubleValue(row.getCell(79)));
-                record.setCaFees(ExcelUtils.getDoubleValue(row.getCell(80)));
-                record.setPickPackFees(ExcelUtils.getDoubleValue(row.getCell(81)));
-                record.setShippingCostsEst(ExcelUtils.getDoubleValue(row.getCell(82)));
-                record.setRithumProfit(ExcelUtils.getDoubleValue(row.getCell(83)));
+                record.setTotalLessTax(ExcelUtils.getDoubleValue(row.getCell(RithumColumn.TOTAL_LESS_TAX.getIndex())));
+                record.setTotalSellerCost(ExcelUtils.getDoubleValue(row.getCell(RithumColumn.TOTAL_SELLER_COST.getIndex())));
+                record.setSiteFees(ExcelUtils.getDoubleValue(row.getCell(RithumColumn.SITE_FEES.getIndex())));
+                record.setPaypalFees(ExcelUtils.getDoubleValue(row.getCell(RithumColumn.PAYPAL_FEES.getIndex())));
+                record.setCaFees(ExcelUtils.getDoubleValue(row.getCell(RithumColumn.CA_FEES.getIndex())));
+                record.setPickPackFees(ExcelUtils.getDoubleValue(row.getCell(RithumColumn.PICK_PACK_FEES.getIndex())));
+                record.setShippingCostsEst(ExcelUtils.getDoubleValue(row.getCell(RithumColumn.SHIPPING_COSTS_EST.getIndex())));
+                record.setRithumProfit(ExcelUtils.getDoubleValue(row.getCell(RithumColumn.PROFIT.getIndex())));
 
                 records.add(record);
             }

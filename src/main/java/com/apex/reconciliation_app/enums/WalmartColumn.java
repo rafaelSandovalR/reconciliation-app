@@ -1,5 +1,9 @@
 package com.apex.reconciliation_app.enums;
 
+
+import lombok.Getter;
+
+@Getter
 public enum WalmartColumn {
     TRANSACTION_DESC(3),    // Column D
     PURCHASE_ORDER(6),      // Column G
@@ -13,7 +17,4 @@ public enum WalmartColumn {
         this.index = index;
     }
 
-    public int getIndex() {
-        return index;
-    }
 }
