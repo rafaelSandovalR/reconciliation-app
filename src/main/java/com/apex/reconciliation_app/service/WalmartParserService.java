@@ -1,5 +1,6 @@
 package com.apex.reconciliation_app.service;
 
+import com.apex.reconciliation_app.enums.WalmartColumn;
 import com.apex.reconciliation_app.model.ReconciliationRecord;
 import com.apex.reconciliation_app.repository.ReconciliationRepository;
 import com.apex.reconciliation_app.util.ExcelUtils;
@@ -27,11 +28,11 @@ public class WalmartParserService {
                 if (row == null) continue;
 
                 // 1. Map based on Walmart's structure
-                String transactionDesc = ExcelUtils.getStringValue(row.getCell(3)).trim().toUpperCase();   // Column D
-                String siteOrderId = ExcelUtils.getStringValue(row.getCell(6)).trim().toUpperCase();       // Column G (Purchase Order #)
-                double amount = ExcelUtils.getDoubleValue(row.getCell(8)) * -1;                            // Column I (Amount)
-                String amountType = ExcelUtils.getStringValue(row.getCell(9)).trim().toUpperCase();        // Column J (Amount Type)
-                String sku = ExcelUtils.getStringValue(row.getCell(14)).trim().toUpperCase();              // Column O (Partner Item Id)
+                String transactionDesc = ExcelUtils.getStringValue(row.getCell(WalmartColumn.TRANSACTION_DESC.getIndex())).trim().toUpperCase();    // Column D (Transaction Description)
+                String siteOrderId = ExcelUtils.getStringValue(row.getCell(WalmartColumn.PURCHASE_ORDER.getIndex())).trim().toUpperCase();          // Column G (Purchase Order #)
+                double amount = ExcelUtils.getDoubleValue(row.getCell(WalmartColumn.AMOUNT.getIndex())) * -1;                                       // Column I (Amount) INVERTED
+                String amountType = ExcelUtils.getStringValue(row.getCell(WalmartColumn.AMOUNT_TYPE.getIndex())).trim().toUpperCase();              // Column J (Amount Type)
+                String sku = ExcelUtils.getStringValue(row.getCell(WalmartColumn.SKU.getIndex())).trim().toUpperCase();                             // Column O (Partner Item Id)
 
                 if (siteOrderId.isEmpty() || sku.isEmpty()) continue;
                 String compositeId = siteOrderId + "-" + sku;
