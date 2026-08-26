@@ -21,23 +21,44 @@ public class WalmartParserService {
     public void parseAndUpdate(InputStream inputStream) {
         try (Workbook workbook = new XSSFWorkbook(inputStream)) {
             Sheet sheet = workbook.getSheetAt(0);
+
+            // --- DYNAMIC HEADER MAPPING ---
+            Row headerRow = sheet.getRow(0);
+            Map<String, Integer> headerMap = new HashMap<>();
+
+            for (Cell cell: headerRow) {
+                String headerName = ExcelUtils.getStringValue(cell).trim().toUpperCase();
+                headerMap.put(headerName, cell.getColumnIndex());
+            }
+
+            // --- EXTRACT COLUMN INDICES DYNAMICALLY ---
+            Integer descIndex = headerMap.get(WalmartColumn.TRANSACTION_DESC.getHeaderName().toUpperCase());
+            Integer poIndex = headerMap.get(WalmartColumn.PURCHASE_ORDER.getHeaderName().toUpperCase());
+            Integer amountIndex = headerMap.get(WalmartColumn.AMOUNT.getHeaderName().toUpperCase());
+            Integer amountTypeIndex = headerMap.get(WalmartColumn.AMOUNT_TYPE.getHeaderName().toUpperCase());
+            Integer skuIndex = headerMap.get(WalmartColumn.SKU.getHeaderName().toUpperCase());
+
+            if (descIndex == null || poIndex == null || amountIndex == null || amountTypeIndex == null || skuIndex == null) {
+                throw new RuntimeException("Missing required columns in Walmart file!");
+            }
+
             Map<String, ReconciliationRecord> recordsToUpdate = new HashMap<>();
 
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
                 Row row = sheet.getRow(i);
                 if (row == null) continue;
 
-                // 1. Map based on Walmart's structure
-                String transactionDesc = ExcelUtils.getStringValue(row.getCell(WalmartColumn.TRANSACTION_DESC.getIndex())).trim().toUpperCase();    // Column D (Transaction Description)
-                String siteOrderId = ExcelUtils.getStringValue(row.getCell(WalmartColumn.PURCHASE_ORDER.getIndex())).trim().toUpperCase();          // Column G (Purchase Order #)
-                double amount = ExcelUtils.getDoubleValue(row.getCell(WalmartColumn.AMOUNT.getIndex())) * -1;                                       // Column I (Amount) INVERTED
-                String amountType = ExcelUtils.getStringValue(row.getCell(WalmartColumn.AMOUNT_TYPE.getIndex())).trim().toUpperCase();              // Column J (Amount Type)
-                String sku = ExcelUtils.getStringValue(row.getCell(WalmartColumn.SKU.getIndex())).trim().toUpperCase();                             // Column O (Partner Item Id)
+                // Extract Values
+                String transactionDesc = ExcelUtils.getStringValue(row.getCell(descIndex)).trim().toUpperCase();
+                String siteOrderId = ExcelUtils.getStringValue(row.getCell(poIndex)).trim().toUpperCase();
+                double amount = ExcelUtils.getDoubleValue(row.getCell(amountIndex)) * -1;
+                String amountType = ExcelUtils.getStringValue(row.getCell(amountTypeIndex)).trim().toUpperCase();
+                String sku = ExcelUtils.getStringValue(row.getCell(skuIndex)).trim().toUpperCase();
 
                 if (siteOrderId.isEmpty() || sku.isEmpty()) continue;
                 String compositeId = siteOrderId + "-" + sku;
 
-                // 2. Fetch record from map or pull from DB if we haven't seen it yet
+                // Fetch record from map or pull from DB if we haven't seen it yet
                 ReconciliationRecord record = recordsToUpdate.get(compositeId);
                 if (record == null) {
                     Optional<ReconciliationRecord> dbRecord = repository.findById(compositeId);
@@ -50,7 +71,7 @@ public class WalmartParserService {
                     }
                 }
 
-                // 3. Route the amount to the correct field based on ledger hierarchy
+                // Route the amount to the correct field based on ledger hierarchy
                 switch (transactionDesc) {
                     case ("PURCHASE") -> {
                         switch (amountType) {
@@ -85,7 +106,7 @@ public class WalmartParserService {
                 }
             }
 
-            // 4. Save all the updated records back to the database.
+            // Save all the updated records back to the database.
             repository.saveAll(recordsToUpdate.values());
             System.out.println("Successfully aggregated and updated " + recordsToUpdate.size() + " Walmart records.");
 

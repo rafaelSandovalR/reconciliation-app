@@ -5,16 +5,16 @@ import lombok.Getter;
 
 @Getter
 public enum WalmartColumn {
-    TRANSACTION_DESC(3),    // Column D
-    PURCHASE_ORDER(6),      // Column G
-    AMOUNT(8),              // Column I
-    AMOUNT_TYPE(9),         // Column J
-    SKU(14);                // Column O
+    TRANSACTION_DESC("Transaction Description"),    // Column D
+    PURCHASE_ORDER("Purchase Order #"),      // Column G
+    AMOUNT("Amount"),              // Column I
+    AMOUNT_TYPE("Amount Type"),         // Column J
+    SKU("Partner Item Id");                // Column O
 
-    private final int index;
+    private final String headerName;
 
-    WalmartColumn(int index) {
-        this.index = index;
+    WalmartColumn(String headerName) {
+        this.headerName = headerName;
     }
 
 }
