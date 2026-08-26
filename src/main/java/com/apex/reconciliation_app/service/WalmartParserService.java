@@ -20,7 +20,7 @@ public class WalmartParserService {
 
     private final ReconciliationRepository repository;
 
-    public void parseAndUpdate(InputStream inputStream) {
+    public List<ExceptionRecord> parseAndUpdate(InputStream inputStream) {
         try (Workbook workbook = new XSSFWorkbook(inputStream)) {
             Sheet sheet = workbook.getSheetAt(0);
 
@@ -128,6 +128,7 @@ public class WalmartParserService {
             if (!failedRows.isEmpty()) {
                 System.out.println("Encountered " + failedRows.size() + " problematic rows to be exported.");
             }
+            return failedRows;
 
         } catch (Exception e) {
             throw new RuntimeException("Failed to parse Walmart Excel file: " + e.getMessage());
