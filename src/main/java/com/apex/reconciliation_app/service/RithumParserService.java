@@ -11,8 +11,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
 
 import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -22,42 +21,45 @@ public class RithumParserService {
 
     public void parseAndSaveInputStream(InputStream inputStream) {
         try (Workbook workbook = new XSSFWorkbook(inputStream)) {
-
             Sheet sheet = workbook.getSheetAt(0);
+
+            Map<String, Integer> headerMap = ExcelUtils.getHeaderMap(sheet.getRow(0));
+
+            // --- Extract all indices automatically
+            Map<RithumColumn, Integer> indexMap = new EnumMap<>(RithumColumn.class);
+            for (RithumColumn column: RithumColumn.values()) {
+                Integer idx = headerMap.get(column.getHeaderName().toUpperCase());
+                if (idx != null) {
+                    indexMap.put(column, idx);
+                }
+            }
+
+            // Safety check
+            if (!indexMap.containsKey(RithumColumn.SITE_ORDER_ID) || !indexMap.containsKey(RithumColumn.SKU)) {
+                throw new RuntimeException("Missing critical matching columns (Site Order ID or SKU) in Rithum file!");
+            }
+
             List<ReconciliationRecord> records = new ArrayList<>();
 
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
                 Row row = sheet.getRow(i);
                 if (row == null) continue;
 
-                // 1. Grab the critical matching data first
-                String siteOrderId = ExcelUtils.getStringValue(row.getCell(RithumColumn.SITE_ORDER_ID.getIndex()));
-                String sku = ExcelUtils.getStringValue(row.getCell(RithumColumn.SKU.getIndex()));
-
-                if (siteOrderId.isEmpty() || sku.isEmpty()) continue;
-
-                // 2. Create the record and generate our Composite ID
                 ReconciliationRecord record = new ReconciliationRecord();
-                record.setCompositeId(siteOrderId + "-" + sku);
 
-                // 3. Fill in the Rithum base data
-                record.setSiteName(ExcelUtils.getStringValue(row.getCell(RithumColumn.SITE_NAME.getIndex())));
-                record.setSku(sku);
-                record.setSiteOrderId(siteOrderId);
-                record.setOrderDate(ExcelUtils.getStringValue(row.getCell(RithumColumn.ORDER_DATE.getIndex())));
-                record.setAccount(ExcelUtils.getStringValue(row.getCell(RithumColumn.ACCOUNT.getIndex())));
-                record.setSalesperson(ExcelUtils.getStringValue(row.getCell(RithumColumn.SALESPERSON.getIndex())));
+                // Dynamically fill record; Loop through columns and apply enum setter
+                for (Map.Entry<RithumColumn, Integer> entry: indexMap.entrySet()) {
+                    RithumColumn column = entry.getKey();
+                    Cell cell = row.getCell(entry.getValue());
+                    column.applyTo(record, cell);
+                }
 
-                // 4. Fill in the financial data using the Double helper
-                record.setTotalLessTax(ExcelUtils.getDoubleValue(row.getCell(RithumColumn.TOTAL_LESS_TAX.getIndex())));
-                record.setTotalSellerCost(ExcelUtils.getDoubleValue(row.getCell(RithumColumn.TOTAL_SELLER_COST.getIndex())));
-                record.setSiteFees(ExcelUtils.getDoubleValue(row.getCell(RithumColumn.SITE_FEES.getIndex())));
-                record.setPaypalFees(ExcelUtils.getDoubleValue(row.getCell(RithumColumn.PAYPAL_FEES.getIndex())));
-                record.setCaFees(ExcelUtils.getDoubleValue(row.getCell(RithumColumn.CA_FEES.getIndex())));
-                record.setPickPackFees(ExcelUtils.getDoubleValue(row.getCell(RithumColumn.PICK_PACK_FEES.getIndex())));
-                record.setShippingCostsEst(ExcelUtils.getDoubleValue(row.getCell(RithumColumn.SHIPPING_COSTS_EST.getIndex())));
-                record.setRithumProfit(ExcelUtils.getDoubleValue(row.getCell(RithumColumn.PROFIT.getIndex())));
+                if (record.getSiteOrderId() == null || record.getSiteOrderId().isEmpty() ||
+                    record.getSku() == null || record.getSku().isEmpty()) {
+                    continue;
+                }
 
+                record.setCompositeId(record.getSiteOrderId() + "-" + record.getSku());
                 records.add(record);
             }
             repository.saveAll(records);
