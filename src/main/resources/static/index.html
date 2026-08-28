@@ -56,13 +56,13 @@
     <div class="card export">
         <h2>Step 3: Master Export</h2>
         <p>Download the fully reconciled master spreadsheet.</p>
-        <button onclick="window.location.href='/api/upload/export'">Download Master Report</button>
+        <!-- Updated to strict REST GET endpoint -->
+        <button onclick="window.location.href='/api/reconciliation/export'">Download Master Report</button>
     </div>
 
 </div>
 
 <script>
-    // Reusable function to handle uploads
     async function handleUpload(formId, fileInputId, statusId, endpoint) {
         document.getElementById(formId).addEventListener('submit', async function(e) {
             e.preventDefault();
@@ -76,14 +76,45 @@
 
             try {
                 const response = await fetch(endpoint, { method: 'POST', body: formData });
-                const resultText = await response.text();
 
                 if (response.ok) {
-                    statusEl.style.color = '#27ae60';
-                    statusEl.textContent = '✓ ' + resultText;
+                    const contentType = response.headers.get('Content-Type');
+
+                    if (contentType && contentType.includes('spreadsheetml')) {
+                        // SCENARIO B: Exceptions Report file received
+                        const blob = await response.blob();
+                        const downloadUrl = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.style.display = 'none';
+                        a.href = downloadUrl;
+
+                        let filename = 'exceptions_report.xlsx';
+                        const disposition = response.headers.get('Content-Disposition');
+                        if (disposition && disposition.includes('filename=')) {
+                            filename = disposition.split('filename=')[1].replace(/['"]/g, '');
+                        }
+
+                        a.download = filename;
+                        document.body.appendChild(a);
+                        a.click();
+
+                        window.URL.revokeObjectURL(downloadUrl);
+                        a.remove();
+
+                        statusEl.style.color = '#e67e22';
+                        statusEl.textContent = '⚠ Processed with exceptions. Error report downloaded.';
+
+                    } else {
+                        // SCENARIO A: Perfect file, read as text
+                        const resultText = await response.text();
+                        statusEl.style.color = '#27ae60';
+                        statusEl.textContent = '✓ ' + resultText;
+                    }
+
                 } else {
+                    const errorText = await response.text();
                     statusEl.style.color = '#c0392b';
-                    statusEl.textContent = '✗ Error: ' + resultText;
+                    statusEl.textContent = '✗ Error: ' + errorText;
                 }
             } catch (error) {
                 statusEl.style.color = '#c0392b';
@@ -92,9 +123,9 @@
         });
     }
 
-    // Wire up the forms to their specific endpoints
-    handleUpload('rithumForm', 'rithumFile', 'rithumStatus', '/api/upload/rithum');
-    handleUpload('walmartForm', 'walmartFile', 'walmartStatus', '/api/upload/walmart');
+    // Updated endpoints to strict REST POST routes
+    handleUpload('rithumForm', 'rithumFile', 'rithumStatus', '/api/reconciliation/rithum');
+    handleUpload('walmartForm', 'walmartFile', 'walmartStatus', '/api/reconciliation/walmart');
 </script>
 </body>
 </html>
