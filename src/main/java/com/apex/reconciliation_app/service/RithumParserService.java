@@ -41,6 +41,9 @@ public class RithumParserService {
 
             List<ReconciliationRecord> records = new ArrayList<>();
 
+            // Track IDs within this specific upload to prevent same-file duplicates
+            Set<String> processedIds = new HashSet<>();
+
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
                 Row row = sheet.getRow(i);
                 if (row == null) continue;
@@ -59,11 +62,21 @@ public class RithumParserService {
                     continue;
                 }
 
-                record.setCompositeId(record.getSiteOrderId() + "-" + record.getSku());
+                String compositeId = record.getSiteOrderId() + "-" + record.getSku();
+                record.setCompositeId(compositeId);
+
+                // IDEMPOTENCY CHECK
+                if (processedIds.contains(compositeId) || repository.existsById(compositeId)) {
+                    continue;
+                }
+
+                processedIds.add(compositeId);
                 records.add(record);
             }
+
+            // Only save brand new records
             repository.saveAll(records);
-            System.out.println("Successfully saved " + records.size() + " Rithum records.");
+            System.out.println("Successfully saved " + records.size() + " new Rithum records.");
 
         } catch (Exception e) {
             throw new RuntimeException("Failed to parse Rithum Excel file:" + e.getMessage());
