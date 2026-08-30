@@ -1,7 +1,7 @@
 package com.apex.reconciliation_app.service;
 
-import dto.ExceptionRecord;
-import lombok.RequiredArgsConstructor;
+import com.apex.reconciliation_app.enums.WalmartColumn;
+import com.apex.reconciliation_app.model.WalmartSuspense;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
@@ -9,12 +9,13 @@ import org.springframework.stereotype.Service;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Service
 public class ExceptionsReportService {
 
-    public ByteArrayInputStream generateReport(List<ExceptionRecord> exceptions) {
+    public ByteArrayInputStream generateReport(List<WalmartSuspense> exceptions) {
 
         try (Workbook workbook = new XSSFWorkbook();
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
@@ -23,46 +24,98 @@ public class ExceptionsReportService {
 
             // --- CREATE AND STYLE HEADER ROW ---
             Row headerRow = sheet.createRow(0);
-            String[] headers = {"Site Order ID",
-                                "SKU",
-                                "Amount",
-                                "Transaction Description",
-                                "Error Reason"};
-
             CellStyle headerStyle = workbook.createCellStyle();
             Font headerFont = workbook.createFont();
             headerFont.setBold(true);
             headerStyle.setFont(headerFont);
 
-            for (int i = 0; i < headers.length; i++) {
-                Cell cell = headerRow.createCell(i);
-                cell.setCellValue(headers[i]);
+            // Fill header values
+            int colIdx = 0;
+            Cell errorHeader = headerRow.createCell(colIdx++);
+            errorHeader.setCellValue("Error Reason");
+            errorHeader.setCellStyle(headerStyle);
+
+            for (WalmartColumn col : WalmartColumn.values()) {
+                Cell cell = headerRow.createCell(colIdx++);
+                cell.setCellValue(col.getHeaderName());
                 cell.setCellStyle(headerStyle);
             }
 
             // --- POPULATE DATA ROWS ---
             int rowIdx = 1;
-            for (ExceptionRecord record : exceptions) {
-                Row row = sheet.createRow(rowIdx++);
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
-                row.createCell(0).setCellValue(record.siteOrderId());
-                row.createCell(1).setCellValue(record.sku());
-                row.createCell(2).setCellValue(record.amount());
-                row.createCell(3).setCellValue(record.transactionDate() != null ? record.transactionDate() : "");
-                row.createCell(4).setCellValue(record.errorReason());
+            for (WalmartSuspense record : exceptions) {
+                Row row = sheet.createRow(rowIdx++);
+                int col = 0;
+                // Error Reason
+                setCellValue(row.createCell(col++), record.getErrorReason());
+
+                // The 38 Raw Columns (Must match the order of the Enum)
+                setCellValue(row.createCell(col++), record.getTransactionKey());
+                setCellValue(row.createCell(col++), record.getTransactionPostedTimestamp() != null ? record.getTransactionPostedTimestamp().format(formatter) : null);
+                setCellValue(row.createCell(col++), record.getTransactionType());
+                setCellValue(row.createCell(col++), record.getTransactionDesc());
+                setCellValue(row.createCell(col++), record.getCustomerOrder());
+                setCellValue(row.createCell(col++), record.getCustomerOrderLine());
+                setCellValue(row.createCell(col++), record.getPurchaseOrder());
+                setCellValue(row.createCell(col++), record.getPurchaseOrderLine());
+                setCellValue(row.createCell(col++), record.getAmount());
+                setCellValue(row.createCell(col++), record.getAmountType());
+                setCellValue(row.createCell(col++), record.getShipQty());
+                setCellValue(row.createCell(col++), record.getCommissionRate());
+                setCellValue(row.createCell(col++), record.getBaseCommissionRate());
+                setCellValue(row.createCell(col++), record.getTransactionReasonDesc());
+                setCellValue(row.createCell(col++), record.getPartnerItemId());
+                setCellValue(row.createCell(col++), record.getPartnerGtIn());
+                setCellValue(row.createCell(col++), record.getPartnerItemName());
+                setCellValue(row.createCell(col++), record.getProductTaxCode());
+                setCellValue(row.createCell(col++), record.getShipToState());
+                setCellValue(row.createCell(col++), record.getShipToCity());
+                setCellValue(row.createCell(col++), record.getShipToZipcode());
+                setCellValue(row.createCell(col++), record.getContractCategory());
+                setCellValue(row.createCell(col++), record.getProductType());
+                setCellValue(row.createCell(col++), record.getCommissionRule());
+                setCellValue(row.createCell(col++), record.getShippingMethod());
+                setCellValue(row.createCell(col++), record.getFulfillmentType());
+                setCellValue(row.createCell(col++), record.getFulfillmentDetails());
+                setCellValue(row.createCell(col++), record.getOriginalCommission());
+                setCellValue(row.createCell(col++), record.getCommissionIncentiveProgram());
+                setCellValue(row.createCell(col++), record.getCommissionSaving());
+                setCellValue(row.createCell(col++), record.getCustomerPromoType());
+                setCellValue(row.createCell(col++), record.getTotalWalmartFundedSavings());
+                setCellValue(row.createCell(col++), record.getCampaignId());
+                setCellValue(row.createCell(col++), record.getItemCondition());
+                setCellValue(row.createCell(col++), record.getOriginalCharge());
+                setCellValue(row.createCell(col++), record.getChargeSavings());
+                setCellValue(row.createCell(col++), record.getIncentiveProgramName());
+                setCellValue(row.createCell(col++), record.getShipToCountry());
             }
 
-            // --- 3. AUTO-SIZE COLUMNS ---
-            for (int i = 0; i < headers.length; i++) {
+            // --- AUTO-SIZE CORE COLUMNS ---
+            for (int i = 0; i < 10; i++) {
                 sheet.autoSizeColumn(i);
             }
 
-            // --- 4. WRITE TO STREAM ---
+            // --- WRITE TO STREAM ---
             workbook.write(out);
             return new ByteArrayInputStream(out.toByteArray());
 
         } catch (IOException e) {
             throw new RuntimeException("Failed to generate Exceptions Report: " + e.getMessage());
+        }
+    }
+
+    // Overloaded helpers to handle nulls
+    private void setCellValue(Cell cell, String value) {
+        cell.setCellValue(value != null ? value : "");
+    }
+
+    private void setCellValue(Cell cell, Double value) {
+        if (value != null) {
+            cell.setCellValue(value);
+        } else {
+            cell.setCellValue("");
         }
     }
 }

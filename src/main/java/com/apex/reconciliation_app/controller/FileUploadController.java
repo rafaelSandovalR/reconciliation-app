@@ -1,10 +1,10 @@
 package com.apex.reconciliation_app.controller;
 
+import com.apex.reconciliation_app.model.WalmartSuspense;
 import com.apex.reconciliation_app.service.ExceptionsReportService;
 import com.apex.reconciliation_app.service.ExportService;
 import com.apex.reconciliation_app.service.RithumParserService;
 import com.apex.reconciliation_app.service.WalmartParserService;
-import dto.ExceptionRecord;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpHeaders;
@@ -50,7 +50,7 @@ public class FileUploadController {
         }
 
         try {
-            List<ExceptionRecord> exceptions = walmartParserService.parseAndUpdate(file.getInputStream());
+            List<WalmartSuspense> exceptions = walmartParserService.parseAndUpdate(file.getInputStream());
 
             // Scenario A: Perfect file
             if (exceptions.isEmpty()){
