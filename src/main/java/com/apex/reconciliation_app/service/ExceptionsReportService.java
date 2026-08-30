@@ -43,7 +43,7 @@ public class ExceptionsReportService {
 
             // --- POPULATE DATA ROWS ---
             int rowIdx = 1;
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("M/d/yyyy");
 
             for (WalmartSuspense record : exceptions) {
                 Row row = sheet.createRow(rowIdx++);
