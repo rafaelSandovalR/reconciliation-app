@@ -9,6 +9,7 @@ import com.apex.reconciliation_app.repository.ReconciliationRepository;
 import com.apex.reconciliation_app.repository.WalmartRawTransactionRepository;
 import com.apex.reconciliation_app.repository.WalmartSuspenseRepository;
 import com.apex.reconciliation_app.util.ExcelUtils;
+import dto.WalmartParseResult;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -26,7 +27,7 @@ public class WalmartParserService {
     private final WalmartRawTransactionRepository auditRepository;
     private final WalmartSuspenseRepository suspenseRepository;
 
-    public List<WalmartSuspense> parseAndUpdate(InputStream inputStream) {
+    public WalmartParseResult parseAndUpdate(InputStream inputStream) {
         try (Workbook workbook = new XSSFWorkbook(inputStream)) {
             Sheet sheet = workbook.getSheetAt(0);
 
@@ -144,7 +145,8 @@ public class WalmartParserService {
             System.out.println("Updated " + recordsToUpdate.size() + " Master Walmart records.");
             System.out.println("Saved " + auditTrail.size() + " Audit rows.");
             System.out.println("Saved " + failedRows.size() + " Suspense rows.");
-            return failedRows;
+            
+            return new WalmartParseResult(failedRows, auditTrail);
 
         } catch (Exception e) {
             throw new RuntimeException("Failed to parse Walmart Excel file: " + e.getMessage());
