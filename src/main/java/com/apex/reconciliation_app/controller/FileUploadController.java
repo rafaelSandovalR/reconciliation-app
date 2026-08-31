@@ -1,10 +1,11 @@
 package com.apex.reconciliation_app.controller;
 
 import com.apex.reconciliation_app.model.WalmartSuspense;
-import com.apex.reconciliation_app.service.ExceptionsReportService;
+import com.apex.reconciliation_app.service.WalmartReportService;
 import com.apex.reconciliation_app.service.ExportService;
 import com.apex.reconciliation_app.service.RithumParserService;
 import com.apex.reconciliation_app.service.WalmartParserService;
+import dto.WalmartParseResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpHeaders;
@@ -25,7 +26,7 @@ public class FileUploadController {
     private final RithumParserService rithumParserService;
     private final ExportService exportService;
     private final WalmartParserService walmartParserService;
-    private final ExceptionsReportService exceptionsReportService;
+    private final WalmartReportService walmartReportService;
 
     @PostMapping("/rithum")
     public ResponseEntity<?> uploadRithumFile(@RequestParam("file") MultipartFile file) {
@@ -50,17 +51,12 @@ public class FileUploadController {
         }
 
         try {
-            List<WalmartSuspense> exceptions = walmartParserService.parseAndUpdate(file.getInputStream());
+            WalmartParseResult result = walmartParserService.parseAndUpdate(file.getInputStream());
 
-            // Scenario A: Perfect file
-            if (exceptions.isEmpty()){
-                return ResponseEntity.ok("Walmart file uploaded and processed successfully with 0 errors!");
-            }
+            InputStreamResource resource = new InputStreamResource(walmartReportService.generateReport(result));
 
-            // Scenario B: Errors found
-            InputStreamResource resource = new InputStreamResource(exceptionsReportService.generateReport(exceptions));
             HttpHeaders headers = new HttpHeaders();
-            headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=walmart_exceptions_report.xlsx");
+            headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=walmart_upload_receipt.xlsx");
 
             return ResponseEntity.ok()
                     .headers(headers)
