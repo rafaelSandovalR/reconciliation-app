@@ -1,11 +1,10 @@
 package com.apex.reconciliation_app.controller;
 
-import com.apex.reconciliation_app.model.WalmartSuspense;
 import com.apex.reconciliation_app.service.WalmartReportService;
 import com.apex.reconciliation_app.service.ExportService;
 import com.apex.reconciliation_app.service.RithumParserService;
 import com.apex.reconciliation_app.service.WalmartParserService;
-import dto.WalmartParseResult;
+import com.apex.reconciliation_app.dto.WalmartParseResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpHeaders;
@@ -14,9 +13,6 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/reconciliation")

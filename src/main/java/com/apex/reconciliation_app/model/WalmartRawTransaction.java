@@ -25,6 +25,9 @@ public class WalmartRawTransaction {
     @Builder.Default
     private LocalDateTime importTimeStamp = LocalDateTime.now();
 
+    @Column(unique = true)
+    private String compositeTransactionId;
+
     // IDENTIFIERS
     private String transactionKey;
     private String purchaseOrder;

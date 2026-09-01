@@ -1,4 +1,4 @@
-package dto;
+package com.apex.reconciliation_app.dto;
 
 import com.apex.reconciliation_app.model.WalmartRawTransaction;
 import com.apex.reconciliation_app.model.WalmartSuspense;

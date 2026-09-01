@@ -6,5 +6,5 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface WalmartRawTransactionRepository extends JpaRepository<WalmartRawTransaction, Long> {
-
+    boolean existsByCompositeTransactionId(String compositeTransactionId);
 }

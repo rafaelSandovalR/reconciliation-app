@@ -9,7 +9,7 @@ import com.apex.reconciliation_app.repository.ReconciliationRepository;
 import com.apex.reconciliation_app.repository.WalmartRawTransactionRepository;
 import com.apex.reconciliation_app.repository.WalmartSuspenseRepository;
 import com.apex.reconciliation_app.util.ExcelUtils;
-import dto.WalmartParseResult;
+import com.apex.reconciliation_app.dto.WalmartParseResult;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -49,9 +49,11 @@ public class WalmartParserService {
 
             Map<String, ReconciliationRecord> recordsToUpdate = new HashMap<>();
 
-            // Audit Trail and Suspense Queue
+            // Audit Trail, Suspense Queue, Processed Line Ids
             List<WalmartRawTransaction> auditTrail = new ArrayList<>();
-            List<WalmartSuspense> failedRows = new ArrayList<>();
+            List<WalmartSuspense> actionableSuspense = new ArrayList<>(); // Goes to DB
+            List<WalmartSuspense> duplicateReceiptRows = new ArrayList<>(); // Transient, Receipt only
+            Set<String> processedLineIds = new HashSet<>();
 
             // --- MAIN PROCESSING LOOP ---
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
@@ -66,9 +68,25 @@ public class WalmartParserService {
                 double invertedAmount = rawAmount * -1; //
                 String amountType = ExcelUtils.getStringValue(row.getCell(headerMap.get(WalmartColumn.AMOUNT_TYPE))).trim().toUpperCase();
                 String sku = ExcelUtils.getStringValue(row.getCell(headerMap.get(WalmartColumn.SKU))).trim().toUpperCase();
+                String transactionKey = ExcelUtils.getStringValue(row.getCell(headerMap.get(WalmartColumn.TRANSACTION_KEY)));
 
                 if (purchaseOrder.isEmpty() || sku.isEmpty()) continue;
                 String compositeId = purchaseOrder + "-" + sku;
+
+                // IDEMPOTENCY CHECK
+                String compositeTransactionId = String.format("%s-%s-%s-%s-%s",
+                        transactionKey, purchaseOrder, sku, transactionType, amountType);
+
+                if (processedLineIds.contains(compositeTransactionId)) {
+                    duplicateReceiptRows.add(buildSuspenseRow(row,headerMap, "Duplicate Record: Found multiple times in current upload"));
+                    continue;
+                }
+                processedLineIds.add(compositeTransactionId);
+
+                if (auditRepository.existsByCompositeTransactionId(compositeTransactionId)) {
+                    duplicateReceiptRows.add(buildSuspenseRow(row, headerMap, "Duplicate Record: Already processed in a previous upload"));
+                    continue;
+                }
 
                 // Fetch record from map or DB
                 ReconciliationRecord record = recordsToUpdate.get(compositeId);
@@ -79,7 +97,7 @@ public class WalmartParserService {
                         recordsToUpdate.put(compositeId, record);
                     } else {
                         // FAULT TOLERANCE: Record the missing order to the Suspense Queue
-                        failedRows.add(buildSuspenseRow(row, headerMap, "Missing from Rithum base data"));
+                        actionableSuspense.add(buildSuspenseRow(row, headerMap, "Missing from Rithum base data"));
                         continue;
                     }
                 }
@@ -119,13 +137,13 @@ public class WalmartParserService {
                         addDynamicReturnFee(record, invertedAmount);
                     } catch (BucketOverflowException e) {
                         // FAULT TOLERANCE: Record overflow to Suspense Queue
-                        failedRows.add(buildSuspenseRow(row, headerMap, "Bucket overflow: Too many fee lines. Need to consolidate fees or create extra column."));
+                        actionableSuspense.add(buildSuspenseRow(row, headerMap, "Bucket overflow: Too many fee lines. Need to consolidate fees or create extra column."));
                         continue;
                     }
                 }
 
                 // If the row survived all the checks, it's successful and will be added to the audit trail
-                auditTrail.add(buildAuditRow(row,headerMap));
+                auditTrail.add(buildAuditRow(row, headerMap, compositeTransactionId));
             }
 
             // POST PROCESSING PASS
@@ -140,13 +158,17 @@ public class WalmartParserService {
             // Save all the updated records back to the database.
             repository.saveAll(recordsToUpdate.values());
             auditRepository.saveAll(auditTrail);
-            suspenseRepository.saveAll(failedRows);
+            suspenseRepository.saveAll(actionableSuspense);
+
+            List<WalmartSuspense> allReceiptErrors = new ArrayList<>(actionableSuspense);
+            allReceiptErrors.addAll(duplicateReceiptRows);
 
             System.out.println("Updated " + recordsToUpdate.size() + " Master Walmart records.");
             System.out.println("Saved " + auditTrail.size() + " Audit rows.");
-            System.out.println("Saved " + failedRows.size() + " Suspense rows.");
+            System.out.println("Saved " + actionableSuspense.size() + " Actionable Suspense rows.");
+            System.out.println("Skipped " + duplicateReceiptRows.size() + " Duplicate rows (Added to receipt only)");
             
-            return new WalmartParseResult(failedRows, auditTrail);
+            return new WalmartParseResult(allReceiptErrors, auditTrail);
 
         } catch (Exception e) {
             throw new RuntimeException("Failed to parse Walmart Excel file: " + e.getMessage());
@@ -164,8 +186,9 @@ public class WalmartParserService {
         }
     }
 
-    private WalmartRawTransaction buildAuditRow(Row row, Map<WalmartColumn, Integer> headerMap) {
+    private WalmartRawTransaction buildAuditRow(Row row, Map<WalmartColumn, Integer> headerMap, String compositeTransactionId) {
         return WalmartRawTransaction.builder()
+                .compositeTransactionId(compositeTransactionId)
                 .transactionKey(getStringSafe(row, headerMap, WalmartColumn.TRANSACTION_KEY))
                 .transactionPostedTimestamp(getDateSafe(row, headerMap, WalmartColumn.TRANSACTION_POSTED_TIMESTAMP))
                 .transactionType(getStringSafe(row, headerMap, WalmartColumn.TRANSACTION_TYPE))
