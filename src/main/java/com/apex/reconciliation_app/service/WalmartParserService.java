@@ -106,11 +106,9 @@ public class WalmartParserService {
                 switch (transactionType) {
                     case ("SALE") -> {
                         switch (amountType) {
-                            case ("PRODUCT PRICE") -> record.setSiteOrderAmount((record.getSiteOrderAmount() != null ? record.getSiteOrderAmount() : 0.0) + rawAmount);
-                            case ("COMMISSION ON PRODUCT") -> record.setSiteOrderFee((record.getSiteOrderFee() != null ? record.getSiteOrderFee() : 0.0) + invertedAmount);
-                            case ("TOTAL WALMART FUNDED SAVINGS") -> record.setSiteOrderOtherFees1((record.getSiteOrderOtherFees1() != null ? record.getSiteOrderOtherFees1() : 0.0) + invertedAmount);
-                            case ("PROMO CODE") -> record.setSiteOrderOtherFees2((record.getSiteOrderOtherFees2() != null ? record.getSiteOrderOtherFees2() : 0.0) + invertedAmount);
-                            case ("OTHER TAX (FEES)") -> record.setSiteOrderOtherFees3((record.getSiteOrderOtherFees3() != null ? record.getSiteOrderOtherFees3() : 0.0) + invertedAmount);
+                            case "PRODUCT PRICE" -> record.setSiteOrderAmount((record.getSiteOrderAmount() != null ? record.getSiteOrderAmount() : 0.0) + rawAmount);
+                            case "COMMISSION ON PRODUCT" -> record.setSiteOrderFee((record.getSiteOrderFee() != null ? record.getSiteOrderFee() : 0.0) + invertedAmount);
+                            case "TOTAL WALMART FUNDED SAVINGS", "PROMO CODE", "OTHER TAX (FEES)" -> addDynamicRegularFee(record, invertedAmount);
                         }
                     }
                     case ("REFUND") -> {
@@ -120,10 +118,9 @@ public class WalmartParserService {
                         }
 
                         switch (amountType) {
-                            case ("PRODUCT PRICE") -> record.setAmountRefunded((record.getAmountRefunded() != null ? record.getAmountRefunded() : 0.0) + invertedAmount);
-                            case ("COMMISSION ON PRODUCT") -> record.setReturnFee1((record.getReturnFee1() != null ? record.getReturnFee1() : 0.0) + invertedAmount);
-                            case ("TOTAL WALMART FUNDED SAVINGS") -> record.setReturnFee2((record.getReturnFee2() != null ? record.getReturnFee2() : 0.0) + invertedAmount);
-                            case ("EXCESSREFUNDADJUSTMENT") -> record.setReturnFee3((record.getReturnFee3() != null ? record.getReturnFee3() : 0.0) + invertedAmount);
+                            case "PRODUCT PRICE" -> record.setAmountRefunded((record.getAmountRefunded() != null ? record.getAmountRefunded() : 0.0) + invertedAmount);
+                            case "COMMISSION ON PRODUCT" -> record.setReturnFee1((record.getReturnFee1() != null ? record.getReturnFee1() : 0.0) + invertedAmount);
+                            case "TOTAL WALMART FUNDED SAVINGS", "EXCESSREFUNDADJUSTMENT" -> addDynamicReturnFee(record, invertedAmount);
                         }
                     }
                 }
@@ -134,7 +131,11 @@ public class WalmartParserService {
 
                 if ("FEE/REIMBURSEMENT".equals(amountType)) {
                     try {
-                        addDynamicReturnFee(record, invertedAmount);
+                        if (transactionDesc.contains("RETURN")) {
+                            addDynamicReturnFee(record, invertedAmount);
+                        } else {
+                            addDynamicRegularFee(record, invertedAmount);
+                        }
                     } catch (BucketOverflowException e) {
                         // FAULT TOLERANCE: Record overflow to Suspense Queue
                         actionableSuspense.add(buildSuspenseRow(row, headerMap, "Bucket overflow: Too many fee lines. Need to consolidate fees or create extra column."));
@@ -146,7 +147,7 @@ public class WalmartParserService {
                 auditTrail.add(buildAuditRow(row, headerMap, compositeTransactionId));
             }
 
-            // POST PROCESSING PASS
+            // POST PROCESSING PASS : Determining fee based of commission refund delta
             for (ReconciliationRecord record : recordsToUpdate.values()) {
                 if (record.getReturnFee1() != null && record.getReturnFee1() < 0) {
                     double originalCommission = record.getSiteOrderFee() != null ? record.getSiteOrderFee() : 0.0;
@@ -163,7 +164,8 @@ public class WalmartParserService {
             List<WalmartSuspense> allReceiptErrors = new ArrayList<>(actionableSuspense);
             allReceiptErrors.addAll(duplicateReceiptRows);
 
-            System.out.println("Updated " + recordsToUpdate.size() + " Master Walmart records.");
+            System.out.println("Updated " + recordsToUpdate.size() + " Rithum Master Walmart records.");
+            System.out.println("Processed " + (auditTrail.size() + allReceiptErrors.size()) + " Walmart Marketplace rows"); // Fix number, its concatenating them instead of adding them
             System.out.println("Saved " + auditTrail.size() + " Audit rows.");
             System.out.println("Saved " + actionableSuspense.size() + " Actionable Suspense rows.");
             System.out.println("Skipped " + duplicateReceiptRows.size() + " Duplicate rows (Added to receipt only)");
@@ -175,12 +177,27 @@ public class WalmartParserService {
         }
     }
 
-    private void addDynamicReturnFee(ReconciliationRecord record, double amount) {
+    private void addDynamicRegularFee(ReconciliationRecord record, double amount) {
+        if (record.getSiteOrderOtherFees1() == null || record.getSiteOrderOtherFees1() == 0) {
+            record.setSiteOrderOtherFees1(amount);
+        } else if (record.getSiteOrderOtherFees2() == null || record.getSiteOrderOtherFees2() == 0) {
+            record.setSiteOrderOtherFees2(amount);
+        } else if (record.getSiteOrderOtherFees3() == null || record.getSiteOrderOtherFees3() == 0) {
+            record.setSiteOrderOtherFees3(amount);
+        } else if (record.getSiteOrderOtherFees4() == null || record.getSiteOrderOtherFees4() == 0) {
+            record.setSiteOrderOtherFees4(amount);
+        } else {
+            throw new BucketOverflowException("No Empty SiteOrderOtherFee columns remaining");
+        }
+    }
 
-        if (record.getReturnFee2() == null) {
+    private void addDynamicReturnFee(ReconciliationRecord record, double amount) {
+        if (record.getReturnFee2() == null || record.getReturnFee2() == 0) {
             record.setReturnFee2(amount);
-        } else if (record.getReturnFee3() == null) {
+        } else if (record.getReturnFee3() == null || record.getReturnFee3() == 0) {
             record.setReturnFee3(amount);
+        } else if (record.getReturnFee4() == null || record.getReturnFee4() == 0) {
+            record.setReturnFee4(amount);
         } else {
             throw new BucketOverflowException("No Empty ReturnFee columns remaining");
         }
