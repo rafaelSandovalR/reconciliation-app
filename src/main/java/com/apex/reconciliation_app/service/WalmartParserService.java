@@ -1,5 +1,6 @@
 package com.apex.reconciliation_app.service;
 
+import com.apex.reconciliation_app.dto.WalmartParseResult;
 import com.apex.reconciliation_app.enums.WalmartColumn;
 import com.apex.reconciliation_app.exception.BucketOverflowException;
 import com.apex.reconciliation_app.model.ReconciliationRecord;
@@ -9,7 +10,6 @@ import com.apex.reconciliation_app.repository.ReconciliationRepository;
 import com.apex.reconciliation_app.repository.WalmartRawTransactionRepository;
 import com.apex.reconciliation_app.repository.WalmartSuspenseRepository;
 import com.apex.reconciliation_app.util.ExcelUtils;
-import com.apex.reconciliation_app.dto.WalmartParseResult;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -108,7 +108,7 @@ public class WalmartParserService {
                         switch (amountType) {
                             case "PRODUCT PRICE" -> record.setSiteOrderAmount((record.getSiteOrderAmount() != null ? record.getSiteOrderAmount() : 0.0) + rawAmount);
                             case "COMMISSION ON PRODUCT" -> record.setSiteOrderFee((record.getSiteOrderFee() != null ? record.getSiteOrderFee() : 0.0) + invertedAmount);
-                            case "TOTAL WALMART FUNDED SAVINGS", "PROMO CODE", "OTHER TAX (FEES)" -> addDynamicRegularFee(record, invertedAmount);
+                            case "TOTAL WALMART FUNDED SAVINGS", "PROMO CODE", "OTHER TAX (FEES)" -> addDynamicRegularFee(record, invertedAmount, amountType);
                         }
                     }
                     case ("REFUND") -> {
@@ -120,7 +120,7 @@ public class WalmartParserService {
                         switch (amountType) {
                             case "PRODUCT PRICE" -> record.setAmountRefunded((record.getAmountRefunded() != null ? record.getAmountRefunded() : 0.0) + invertedAmount);
                             case "COMMISSION ON PRODUCT" -> record.setReturnFee1((record.getReturnFee1() != null ? record.getReturnFee1() : 0.0) + invertedAmount);
-                            case "TOTAL WALMART FUNDED SAVINGS", "EXCESSREFUNDADJUSTMENT" -> addDynamicReturnFee(record, invertedAmount);
+                            case "TOTAL WALMART FUNDED SAVINGS", "EXCESSREFUNDADJUSTMENT" -> addDynamicReturnFee(record, invertedAmount, amountType);
                         }
                     }
                 }
@@ -132,9 +132,9 @@ public class WalmartParserService {
                 if ("FEE/REIMBURSEMENT".equals(amountType)) {
                     try {
                         if (transactionDesc.contains("RETURN")) {
-                            addDynamicReturnFee(record, invertedAmount);
+                            addDynamicReturnFee(record, invertedAmount, amountType);
                         } else {
-                            addDynamicRegularFee(record, invertedAmount);
+                            addDynamicRegularFee(record, invertedAmount, amountType);
                         }
                     } catch (BucketOverflowException e) {
                         // FAULT TOLERANCE: Record overflow to Suspense Queue
@@ -165,11 +165,11 @@ public class WalmartParserService {
             allReceiptErrors.addAll(duplicateReceiptRows);
 
             System.out.println("Updated " + recordsToUpdate.size() + " Rithum Master Walmart records.");
-            System.out.println("Processed " + (auditTrail.size() + allReceiptErrors.size()) + " Walmart Marketplace rows"); // Fix number, its concatenating them instead of adding them
+            System.out.println("Processed " + (auditTrail.size() + allReceiptErrors.size()) + " Walmart Marketplace rows");
             System.out.println("Saved " + auditTrail.size() + " Audit rows.");
             System.out.println("Saved " + actionableSuspense.size() + " Actionable Suspense rows.");
             System.out.println("Skipped " + duplicateReceiptRows.size() + " Duplicate rows (Added to receipt only)");
-            
+
             return new WalmartParseResult(allReceiptErrors, auditTrail);
 
         } catch (Exception e) {
@@ -177,7 +177,7 @@ public class WalmartParserService {
         }
     }
 
-    private void addDynamicRegularFee(ReconciliationRecord record, double amount) {
+    private void addDynamicRegularFee(ReconciliationRecord record, double amount, String amountType) {
         if (record.getSiteOrderOtherFees1() == null || record.getSiteOrderOtherFees1() == 0) {
             record.setSiteOrderOtherFees1(amount);
         } else if (record.getSiteOrderOtherFees2() == null || record.getSiteOrderOtherFees2() == 0) {
@@ -189,9 +189,12 @@ public class WalmartParserService {
         } else {
             throw new BucketOverflowException("No Empty SiteOrderOtherFee columns remaining");
         }
+
+        String note = "Fee: " + amountType + ", ";
+        record.setNotes(record.getNotes() == null ? note : record.getNotes().concat(note));
     }
 
-    private void addDynamicReturnFee(ReconciliationRecord record, double amount) {
+    private void addDynamicReturnFee(ReconciliationRecord record, double amount, String amountType) {
         if (record.getReturnFee2() == null || record.getReturnFee2() == 0) {
             record.setReturnFee2(amount);
         } else if (record.getReturnFee3() == null || record.getReturnFee3() == 0) {
@@ -201,6 +204,9 @@ public class WalmartParserService {
         } else {
             throw new BucketOverflowException("No Empty ReturnFee columns remaining");
         }
+
+        String note = "Return Fee: " + amountType + ", ";
+        record.setNotes((record.getNotes() == null ? note : record.getNotes().concat(note)));
     }
 
     private WalmartRawTransaction buildAuditRow(Row row, Map<WalmartColumn, Integer> headerMap, String compositeTransactionId) {
