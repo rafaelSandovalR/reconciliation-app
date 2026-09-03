@@ -46,7 +46,7 @@ public class WalmartParserService {
             // Audit Trail, Suspense Queue, Processed Line Ids
             List<WalmartRawTransaction> auditTrail = new ArrayList<>();
             List<WalmartSuspense> actionableSuspense = new ArrayList<>(); // Goes to DB
-            List<WalmartSuspense> duplicateReceiptRows = new ArrayList<>(); // Transient, Receipt only
+            List<WalmartSuspense> errorSuspense = new ArrayList<>(); // Transient, Receipt only
             Set<String> processedLineIds = new HashSet<>();
 
             // --- MAIN PROCESSING LOOP ---
@@ -59,7 +59,10 @@ public class WalmartParserService {
                 // Extract core routing variables
                 String purchaseOrder = auditRow.getPurchaseOrder() != null ? auditRow.getPurchaseOrder().trim().toUpperCase() : "";
                 String sku = auditRow.getPartnerItemId() != null ? auditRow.getPartnerItemId().trim().toUpperCase() : "";
-                if (purchaseOrder.isEmpty() || sku.isEmpty()) continue;
+                if (purchaseOrder.isEmpty() || sku.isEmpty()) {
+                    errorSuspense.add(buildSuspenseRow(auditRow, "Skipped: Missing Purchase Order or SKU (Non-order line item)"));
+                    continue;
+                };
 
                 String compositeId = purchaseOrder + "-" + sku;
                 String transactionType = auditRow.getTransactionType() != null ? auditRow.getTransactionType().trim().toUpperCase() : "";
@@ -77,13 +80,13 @@ public class WalmartParserService {
 
                 // Idempotency checks
                 if (processedLineIds.contains(compositeTransactionId)) {
-                    duplicateReceiptRows.add(buildSuspenseRow(auditRow, "Duplicate Record: Found multiple times in current upload"));
+                    errorSuspense.add(buildSuspenseRow(auditRow, "Duplicate Record: Found multiple times in current upload"));
                     continue;
                 }
                 processedLineIds.add(compositeTransactionId);
 
                 if (auditRepository.existsByCompositeTransactionId(compositeTransactionId)) {
-                    duplicateReceiptRows.add(buildSuspenseRow(auditRow, "Duplicate Record: Already processed in a previous upload"));
+                    errorSuspense.add(buildSuspenseRow(auditRow, "Duplicate Record: Already processed in a previous upload"));
                     continue;
                 }
 
@@ -157,13 +160,13 @@ public class WalmartParserService {
             suspenseRepository.saveAll(actionableSuspense);
 
             List<WalmartSuspense> allReceiptErrors = new ArrayList<>(actionableSuspense);
-            allReceiptErrors.addAll(duplicateReceiptRows);
+            allReceiptErrors.addAll(errorSuspense);
 
             System.out.println("Updated " + recordsToUpdate.size() + " Rithum Master Walmart records.");
             System.out.println("Processed " + (auditTrail.size() + allReceiptErrors.size()) + " Walmart Marketplace rows");
             System.out.println("Saved " + auditTrail.size() + " Audit rows.");
             System.out.println("Saved " + actionableSuspense.size() + " Actionable Suspense rows.");
-            System.out.println("Skipped " + duplicateReceiptRows.size() + " Duplicate rows (Added to receipt only)");
+            System.out.println("Skipped " + errorSuspense.size() + " Duplicate rows (Added to receipt only)");
 
             return new MarketplaceParseResult<>(allReceiptErrors, auditTrail);
 
