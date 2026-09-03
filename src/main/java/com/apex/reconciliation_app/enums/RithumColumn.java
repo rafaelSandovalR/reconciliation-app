@@ -8,7 +8,7 @@ import org.apache.poi.ss.usermodel.Cell;
 import java.util.function.BiConsumer;
 
 @Getter
-public enum RithumColumn {
+public enum RithumColumn implements ExcelColumn{
     SITE_NAME("Site Name", (record, cell) -> record.setSiteName(ExcelUtils.getStringValue(cell))),
     SKU("SKU", (record, cell) -> record.setSku(ExcelUtils.getStringValue(cell))),
     ORDER_DATE("Order Date", (record, cell) -> record.setOrderDate(ExcelUtils.getStringValue(cell))),

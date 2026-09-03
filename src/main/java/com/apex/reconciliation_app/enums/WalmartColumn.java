@@ -4,7 +4,7 @@ package com.apex.reconciliation_app.enums;
 import lombok.Getter;
 
 @Getter
-public enum WalmartColumn {
+public enum WalmartColumn implements ExcelColumn{
     TRANSACTION_KEY("Transaction Key"),
     TRANSACTION_POSTED_TIMESTAMP("Transaction Posted Timestamp"),
     TRANSACTION_TYPE("Transaction Type"),

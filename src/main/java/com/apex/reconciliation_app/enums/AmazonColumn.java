@@ -1,9 +1,10 @@
 package com.apex.reconciliation_app.enums;
 
+import com.apex.reconciliation_app.util.ExcelUtils;
 import lombok.Getter;
 
 @Getter
-public enum AmazonColumn {
+public enum AmazonColumn implements ExcelColumn {
     DATE_TIME("date/time"),
     SETTLEMENT_ID("settlement id"),
     TYPE("type"),

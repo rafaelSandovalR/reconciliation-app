@@ -34,15 +34,7 @@ public class WalmartParserService {
             Sheet sheet = workbook.getSheetAt(0);
 
             // --- DYNAMIC HEADER MAPPING ---
-            Map<String, Integer> stringHeaderMap = ExcelUtils.getHeaderMap(sheet.getRow(0));
-            Map<WalmartColumn, Integer> headerMap = new EnumMap<>(WalmartColumn.class);
-
-            for (WalmartColumn col : WalmartColumn.values()) {
-                Integer index = stringHeaderMap.get(col.getHeaderName().toUpperCase());
-                if (index != null) {
-                    headerMap.put(col,index);
-                }
-            }
+            Map<WalmartColumn, Integer> headerMap = ExcelUtils.buildHeaderMap(sheet.getRow(0), WalmartColumn.class);
 
             // Verify core routing columns exist
             if (!headerMap.containsKey(WalmartColumn.TRANSACTION_TYPE) || !headerMap.containsKey(WalmartColumn.PURCHASE_ORDER) || !headerMap.containsKey(WalmartColumn.AMOUNT)) {

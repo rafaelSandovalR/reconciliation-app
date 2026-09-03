@@ -1,11 +1,14 @@
 package com.apex.reconciliation_app.util;
 
+import com.apex.reconciliation_app.enums.ExcelColumn;
+import com.apex.reconciliation_app.enums.WalmartColumn;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.DateUtil;
 import org.apache.poi.ss.usermodel.Row;
 
 import java.time.LocalDateTime;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -83,4 +86,17 @@ public class ExcelUtils {
         }
         return null;
     }
+
+    public static <E extends  Enum<E> & ExcelColumn> Map<E,Integer> buildHeaderMap(Row headerRow, Class<E> enumClass) {
+        Map<String, Integer> stringHeaderMap = getHeaderMap(headerRow);
+        Map<E, Integer> finalMap = new EnumMap<>(enumClass);
+
+        for (E col : enumClass.getEnumConstants()) {
+            Integer index = stringHeaderMap.get(col.getHeaderName().toUpperCase());
+            if (index != null) finalMap.put(col, index);
+        }
+
+        return finalMap;
+    }
+
 }

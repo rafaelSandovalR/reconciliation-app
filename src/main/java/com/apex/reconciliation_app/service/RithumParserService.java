@@ -23,19 +23,12 @@ public class RithumParserService {
         try (Workbook workbook = new XSSFWorkbook(inputStream)) {
             Sheet sheet = workbook.getSheetAt(0);
 
-            Map<String, Integer> headerMap = ExcelUtils.getHeaderMap(sheet.getRow(0));
 
             // --- Extract all indices automatically
-            Map<RithumColumn, Integer> indexMap = new EnumMap<>(RithumColumn.class);
-            for (RithumColumn column: RithumColumn.values()) {
-                Integer idx = headerMap.get(column.getHeaderName().toUpperCase());
-                if (idx != null) {
-                    indexMap.put(column, idx);
-                }
-            }
+            Map<RithumColumn, Integer> headerMap = ExcelUtils.buildHeaderMap(sheet.getRow(0), RithumColumn.class);
 
             // Safety check
-            if (!indexMap.containsKey(RithumColumn.SITE_ORDER_ID) || !indexMap.containsKey(RithumColumn.SKU)) {
+            if (!headerMap.containsKey(RithumColumn.SITE_ORDER_ID) || !headerMap.containsKey(RithumColumn.SKU)) {
                 throw new RuntimeException("Missing critical matching columns (Site Order ID or SKU) in Rithum file!");
             }
 
@@ -51,7 +44,7 @@ public class RithumParserService {
                 ReconciliationRecord record = new ReconciliationRecord();
 
                 // Dynamically fill record; Loop through columns and apply enum setter
-                for (Map.Entry<RithumColumn, Integer> entry: indexMap.entrySet()) {
+                for (Map.Entry<RithumColumn, Integer> entry: headerMap.entrySet()) {
                     RithumColumn column = entry.getKey();
                     Cell cell = row.getCell(entry.getValue());
                     column.applyTo(record, cell);
@@ -74,7 +67,7 @@ public class RithumParserService {
                 records.add(record);
             }
 
-            // Only save brand new records
+            // Only save brand-new records
             repository.saveAll(records);
             System.out.println("Successfully saved " + records.size() + " new Rithum records.");
 
