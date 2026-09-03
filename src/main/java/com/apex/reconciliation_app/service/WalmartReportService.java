@@ -1,9 +1,9 @@
 package com.apex.reconciliation_app.service;
 
+import com.apex.reconciliation_app.dto.MarketplaceParseResult;
 import com.apex.reconciliation_app.enums.WalmartColumn;
 import com.apex.reconciliation_app.model.WalmartRawTransaction;
 import com.apex.reconciliation_app.model.WalmartSuspense;
-import com.apex.reconciliation_app.dto.WalmartParseResult;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
@@ -17,7 +17,7 @@ import java.util.List;
 @Service
 public class WalmartReportService {
 
-    public ByteArrayInputStream generateReport(WalmartParseResult result) {
+    public ByteArrayInputStream generateReport(MarketplaceParseResult<WalmartSuspense, WalmartRawTransaction> result) {
 
         try (Workbook workbook = new XSSFWorkbook();
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {

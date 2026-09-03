@@ -1,6 +1,6 @@
 package com.apex.reconciliation_app.service;
 
-import com.apex.reconciliation_app.dto.WalmartParseResult;
+import com.apex.reconciliation_app.dto.MarketplaceParseResult;
 import com.apex.reconciliation_app.enums.WalmartColumn;
 import com.apex.reconciliation_app.exception.BucketOverflowException;
 import com.apex.reconciliation_app.model.ReconciliationRecord;
@@ -29,7 +29,7 @@ public class WalmartParserService {
     private final WalmartRawTransactionRepository auditRepository;
     private final WalmartSuspenseRepository suspenseRepository;
 
-    public WalmartParseResult parseAndUpdate(InputStream inputStream) {
+    public MarketplaceParseResult<WalmartSuspense, WalmartRawTransaction> parseAndUpdate(InputStream inputStream) {
         try (Workbook workbook = new XSSFWorkbook(inputStream)) {
             Sheet sheet = workbook.getSheetAt(0);
 
@@ -172,7 +172,7 @@ public class WalmartParserService {
             System.out.println("Saved " + actionableSuspense.size() + " Actionable Suspense rows.");
             System.out.println("Skipped " + duplicateReceiptRows.size() + " Duplicate rows (Added to receipt only)");
 
-            return new WalmartParseResult(allReceiptErrors, auditTrail);
+            return new MarketplaceParseResult<>(allReceiptErrors, auditTrail);
 
         } catch (Exception e) {
             throw new RuntimeException("Failed to parse Walmart Excel file: " + e.getMessage());

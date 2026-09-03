@@ -1,10 +1,12 @@
 package com.apex.reconciliation_app.controller;
 
+import com.apex.reconciliation_app.dto.MarketplaceParseResult;
+import com.apex.reconciliation_app.model.WalmartRawTransaction;
+import com.apex.reconciliation_app.model.WalmartSuspense;
 import com.apex.reconciliation_app.service.WalmartReportService;
 import com.apex.reconciliation_app.service.ExportService;
 import com.apex.reconciliation_app.service.RithumParserService;
 import com.apex.reconciliation_app.service.WalmartParserService;
-import com.apex.reconciliation_app.dto.WalmartParseResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpHeaders;
@@ -51,7 +53,7 @@ public class FileUploadController {
         }
 
         try {
-            WalmartParseResult result = walmartParserService.parseAndUpdate(file.getInputStream());
+            MarketplaceParseResult<WalmartSuspense, WalmartRawTransaction> result = walmartParserService.parseAndUpdate(file.getInputStream());
 
             InputStreamResource resource = new InputStreamResource(walmartReportService.generateReport(result));
 
