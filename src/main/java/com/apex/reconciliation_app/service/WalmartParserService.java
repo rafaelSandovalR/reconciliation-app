@@ -113,7 +113,7 @@ public class WalmartParserService {
 
                         switch (amountType) {
                             case "PRODUCT PRICE" -> record.setAmountRefunded((record.getAmountRefunded() != null ? record.getAmountRefunded() : 0.0) + invertedAmount);
-                            case "COMMISSION ON PRODUCT" -> record.setReturnFee1((record.getReturnFee1() != null ? record.getReturnFee1() : 0.0) + invertedAmount);
+                            case "COMMISSION ON PRODUCT" -> record.setCommissionRefund((record.getCommissionRefund() != null ? record.getCommissionRefund() : 0.0) + invertedAmount);
                             case "TOTAL WALMART FUNDED SAVINGS", "EXCESSREFUNDADJUSTMENT" -> record.addDynamicReturnFee(invertedAmount, amountType);
                         }
                     }
@@ -143,11 +143,7 @@ public class WalmartParserService {
 
             // POST PROCESSING PASS : Determining fee based of commission refund delta
             for (ReconciliationRecord record : recordsToUpdate.values()) {
-                if (record.getReturnFee1() != null && record.getReturnFee1() < 0) {
-                    double originalCommission = record.getSiteOrderFee() != null ? record.getSiteOrderFee() : 0.0;
-                    double commissionRefundDifference = originalCommission + record.getReturnFee1();
-                    record.setReturnFee1(commissionRefundDifference);
-                }
+                record.calculateCommissionRefundDelta();
             }
 
             // Save all the updated records back to the database.

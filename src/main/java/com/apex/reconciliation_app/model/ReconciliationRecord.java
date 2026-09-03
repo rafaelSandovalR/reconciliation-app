@@ -48,6 +48,7 @@ public class ReconciliationRecord {
     private String returnStatus;
     private Double amountRefunded;
     private Double returnShipping;
+    private Double commissionRefund; // Hidden variable
     private Double returnFee1;
     private Double returnFee2;
     private Double returnFee3;
@@ -73,7 +74,9 @@ public class ReconciliationRecord {
     }
 
     public void addDynamicReturnFee(double amount, String amountType) {
-        if (this.returnFee2 == null || this.returnFee2 == 0) {
+        if (this.returnFee1 == null || this.returnFee1 == 0) {
+            this.returnFee1 = amount;
+        } else if (this.returnFee2 == null || this.returnFee2 == 0) {
             this.returnFee2 = amount;
         } else if (this.returnFee3 == null || this.returnFee3 == 0) {
             this.returnFee3 = amount;
@@ -85,5 +88,19 @@ public class ReconciliationRecord {
 
         String note = "Return Fee: " + amountType + ", ";
         this.notes = (this.notes == null ? note : this.notes.concat(note));
+    }
+
+    public void calculateCommissionRefundDelta() {
+
+        if (this.getSiteOrderFee() == null || this.getSiteOrderFee() == 0 ||
+            this.getCommissionRefund() == null || this.getCommissionRefund() == 0) {
+            return;
+        }
+
+        double originalCommission = this.getSiteOrderFee();
+        double commissionRefundDifference = originalCommission + this.getCommissionRefund();
+        if (commissionRefundDifference != 0){
+            addDynamicReturnFee(commissionRefundDifference, "COMMISSION DELTA");
+        }
     }
 }
