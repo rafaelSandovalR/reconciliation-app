@@ -54,31 +54,36 @@ public class WalmartParserService {
                 Row row = sheet.getRow(i);
                 if (row == null) continue;
 
+                WalmartRawTransaction auditRow = buildAuditRow(row, headerMap);
+
                 // Extract core routing variables
-                String transactionType = ExcelUtils.getStringValue(row.getCell(headerMap.get(WalmartColumn.TRANSACTION_TYPE))).trim().toUpperCase();
-                String transactionDesc = ExcelUtils.getStringValue(row.getCell(headerMap.get(WalmartColumn.TRANSACTION_DESC))).trim().toUpperCase();
-                String purchaseOrder = ExcelUtils.getStringValue(row.getCell(headerMap.get(WalmartColumn.PURCHASE_ORDER))).trim().toUpperCase();
-                double rawAmount = ExcelUtils.getDoubleValue(row.getCell(headerMap.get(WalmartColumn.AMOUNT)));
-                double invertedAmount = rawAmount * -1; //
-                String amountType = ExcelUtils.getStringValue(row.getCell(headerMap.get(WalmartColumn.AMOUNT_TYPE))).trim().toUpperCase();
-                String sku = ExcelUtils.getStringValue(row.getCell(headerMap.get(WalmartColumn.SKU))).trim().toUpperCase();
-                String transactionKey = ExcelUtils.getStringValue(row.getCell(headerMap.get(WalmartColumn.TRANSACTION_KEY)));
-
+                String purchaseOrder = auditRow.getPurchaseOrder() != null ? auditRow.getPurchaseOrder().trim().toUpperCase() : "";
+                String sku = auditRow.getPartnerItemId() != null ? auditRow.getPartnerItemId().trim().toUpperCase() : "";
                 if (purchaseOrder.isEmpty() || sku.isEmpty()) continue;
-                String compositeId = purchaseOrder + "-" + sku;
 
-                // IDEMPOTENCY CHECK
+                String compositeId = purchaseOrder + "-" + sku;
+                String transactionType = auditRow.getTransactionType() != null ? auditRow.getTransactionType().trim().toUpperCase() : "";
+                String transactionDesc = auditRow.getTransactionDesc() != null ? auditRow.getTransactionDesc().trim().toUpperCase() : "";
+                String amountType = auditRow.getAmountType() != null ? auditRow.getAmountType().trim().toUpperCase() : "";
+                String transactionKey = auditRow.getTransactionKey() != null ? auditRow.getTransactionKey().trim().toUpperCase() : "";
+
+                double rawAmount = auditRow.getAmount() != null ? auditRow.getAmount() : 0.0;
+                double invertedAmount = rawAmount * -1;
+
+                // Generate and set Composite Transaction ID
                 String compositeTransactionId = String.format("%s-%s-%s-%s-%s",
                         transactionKey, purchaseOrder, sku, transactionType, amountType);
+                auditRow.setCompositeTransactionId(compositeTransactionId);
 
+                // Idempotency checks
                 if (processedLineIds.contains(compositeTransactionId)) {
-                    duplicateReceiptRows.add(buildSuspenseRow(row,headerMap, "Duplicate Record: Found multiple times in current upload"));
+                    duplicateReceiptRows.add(buildSuspenseRow(auditRow, "Duplicate Record: Found multiple times in current upload"));
                     continue;
                 }
                 processedLineIds.add(compositeTransactionId);
 
                 if (auditRepository.existsByCompositeTransactionId(compositeTransactionId)) {
-                    duplicateReceiptRows.add(buildSuspenseRow(row, headerMap, "Duplicate Record: Already processed in a previous upload"));
+                    duplicateReceiptRows.add(buildSuspenseRow(auditRow, "Duplicate Record: Already processed in a previous upload"));
                     continue;
                 }
 
@@ -91,7 +96,7 @@ public class WalmartParserService {
                         recordsToUpdate.put(compositeId, record);
                     } else {
                         // FAULT TOLERANCE: Record the missing order to the Suspense Queue
-                        actionableSuspense.add(buildSuspenseRow(row, headerMap, "Missing from Rithum base data"));
+                        actionableSuspense.add(buildSuspenseRow(auditRow, "Missing from Rithum base data"));
                         continue;
                     }
                 }
@@ -132,13 +137,13 @@ public class WalmartParserService {
                         }
                     } catch (BucketOverflowException e) {
                         // FAULT TOLERANCE: Record overflow to Suspense Queue
-                        actionableSuspense.add(buildSuspenseRow(row, headerMap, "Bucket overflow: Too many fee lines. Need to consolidate fees or create extra column."));
+                        actionableSuspense.add(buildSuspenseRow(auditRow, "Bucket overflow: Too many fee lines. Need to consolidate fees or create extra column."));
                         continue;
                     }
                 }
 
-                // If the row survived all the checks, it's successful and will be added to the audit trail
-                auditTrail.add(buildAuditRow(row, headerMap, compositeTransactionId));
+                // Surviving hydrated objects get added to the audit trail
+                auditTrail.add(auditRow);
             }
 
             // POST PROCESSING PASS : Determining fee based of commission refund delta
@@ -167,9 +172,8 @@ public class WalmartParserService {
         }
     }
 
-    private WalmartRawTransaction buildAuditRow(Row row, Map<WalmartColumn, Integer> headerMap, String compositeTransactionId) {
+    private WalmartRawTransaction buildAuditRow(Row row, Map<WalmartColumn, Integer> headerMap) {
         return WalmartRawTransaction.builder()
-                .compositeTransactionId(compositeTransactionId)
                 .transactionKey(ExcelUtils.getStringSafe(row, headerMap, WalmartColumn.TRANSACTION_KEY))
                 .transactionPostedTimestamp(ExcelUtils.getDateSafe(row, headerMap, WalmartColumn.TRANSACTION_POSTED_TIMESTAMP))
                 .transactionType(ExcelUtils.getStringSafe(row, headerMap, WalmartColumn.TRANSACTION_TYPE))
@@ -211,10 +215,9 @@ public class WalmartParserService {
                 .build();
     }
 
-    private WalmartSuspense buildSuspenseRow(Row row, Map<WalmartColumn, Integer> headerMap, String reason) {
-        WalmartRawTransaction baseData = buildAuditRow(row, headerMap, null);
+    private WalmartSuspense buildSuspenseRow(WalmartRawTransaction auditRow, String reason) {
         WalmartSuspense suspenseRow = new WalmartSuspense();
-        BeanUtils.copyProperties(baseData, suspenseRow);
+        BeanUtils.copyProperties(auditRow, suspenseRow);
         suspenseRow.setErrorReason(reason);
         return suspenseRow;
     }
