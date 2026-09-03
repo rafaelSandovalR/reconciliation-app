@@ -1,9 +1,11 @@
 package com.apex.reconciliation_app.util;
 
 import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.DateUtil;
 import org.apache.poi.ss.usermodel.Row;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -58,5 +60,27 @@ public class ExcelUtils {
         }
 
         return headerMap;
+    }
+
+    // SAFE EXTRACTION UTILS FOR ANY ENUM
+    public static <E extends Enum<E>> String getStringSafe(Row row, Map<E, Integer> headerMap, E col) {
+        if (!headerMap.containsKey(col)) return null;
+        return getStringValue(row.getCell((headerMap.get(col))));
+    }
+
+    public static <E extends Enum<E>> Double getDoubleSafe(Row row, Map<E, Integer> headerMap, E col) {
+        if (!headerMap.containsKey(col)) return null;
+        Cell cell = row.getCell(headerMap.get(col));
+        if (cell == null || cell.getCellType() == CellType.BLANK) return null;
+        return getDoubleValue(cell);
+    }
+
+    public static <E extends Enum<E>>LocalDateTime getDateSafe(Row row, Map<E, Integer> headerMap, E col) {
+        if(!headerMap.containsKey(col)) return null;
+        Cell cell = row.getCell(headerMap.get(col));
+        if (cell != null && cell.getCellType() != CellType.BLANK && DateUtil.isCellDateFormatted(cell)) {
+            return cell.getLocalDateTimeCellValue();
+        }
+        return null;
     }
 }

@@ -11,12 +11,14 @@ import com.apex.reconciliation_app.repository.WalmartRawTransactionRepository;
 import com.apex.reconciliation_app.repository.WalmartSuspenseRepository;
 import com.apex.reconciliation_app.util.ExcelUtils;
 import lombok.RequiredArgsConstructor;
-import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
 import java.io.InputStream;
-import java.time.LocalDateTime;
 import java.util.*;
 
 @Service
@@ -108,7 +110,7 @@ public class WalmartParserService {
                         switch (amountType) {
                             case "PRODUCT PRICE" -> record.setSiteOrderAmount((record.getSiteOrderAmount() != null ? record.getSiteOrderAmount() : 0.0) + rawAmount);
                             case "COMMISSION ON PRODUCT" -> record.setSiteOrderFee((record.getSiteOrderFee() != null ? record.getSiteOrderFee() : 0.0) + invertedAmount);
-                            case "TOTAL WALMART FUNDED SAVINGS", "PROMO CODE", "OTHER TAX (FEES)" -> addDynamicRegularFee(record, invertedAmount, amountType);
+                            case "TOTAL WALMART FUNDED SAVINGS", "PROMO CODE", "OTHER TAX (FEES)" -> record.addDynamicRegularFee(invertedAmount, amountType);
                         }
                     }
                     case ("REFUND") -> {
@@ -120,7 +122,7 @@ public class WalmartParserService {
                         switch (amountType) {
                             case "PRODUCT PRICE" -> record.setAmountRefunded((record.getAmountRefunded() != null ? record.getAmountRefunded() : 0.0) + invertedAmount);
                             case "COMMISSION ON PRODUCT" -> record.setReturnFee1((record.getReturnFee1() != null ? record.getReturnFee1() : 0.0) + invertedAmount);
-                            case "TOTAL WALMART FUNDED SAVINGS", "EXCESSREFUNDADJUSTMENT" -> addDynamicReturnFee(record, invertedAmount, amountType);
+                            case "TOTAL WALMART FUNDED SAVINGS", "EXCESSREFUNDADJUSTMENT" -> record.addDynamicReturnFee(invertedAmount, amountType);
                         }
                     }
                 }
@@ -132,9 +134,9 @@ public class WalmartParserService {
                 if ("FEE/REIMBURSEMENT".equals(amountType)) {
                     try {
                         if (transactionDesc.contains("RETURN")) {
-                            addDynamicReturnFee(record, invertedAmount, amountType);
+                            record.addDynamicReturnFee(invertedAmount, amountType);
                         } else {
-                            addDynamicRegularFee(record, invertedAmount, amountType);
+                            record.addDynamicRegularFee(invertedAmount, amountType);
                         }
                     } catch (BucketOverflowException e) {
                         // FAULT TOLERANCE: Record overflow to Suspense Queue
@@ -177,145 +179,55 @@ public class WalmartParserService {
         }
     }
 
-    private void addDynamicRegularFee(ReconciliationRecord record, double amount, String amountType) {
-        if (record.getSiteOrderOtherFees1() == null || record.getSiteOrderOtherFees1() == 0) {
-            record.setSiteOrderOtherFees1(amount);
-        } else if (record.getSiteOrderOtherFees2() == null || record.getSiteOrderOtherFees2() == 0) {
-            record.setSiteOrderOtherFees2(amount);
-        } else if (record.getSiteOrderOtherFees3() == null || record.getSiteOrderOtherFees3() == 0) {
-            record.setSiteOrderOtherFees3(amount);
-        } else if (record.getSiteOrderOtherFees4() == null || record.getSiteOrderOtherFees4() == 0) {
-            record.setSiteOrderOtherFees4(amount);
-        } else {
-            throw new BucketOverflowException("No Empty SiteOrderOtherFee columns remaining");
-        }
-
-        String note = "Fee: " + amountType + ", ";
-        record.setNotes(record.getNotes() == null ? note : record.getNotes().concat(note));
-    }
-
-    private void addDynamicReturnFee(ReconciliationRecord record, double amount, String amountType) {
-        if (record.getReturnFee2() == null || record.getReturnFee2() == 0) {
-            record.setReturnFee2(amount);
-        } else if (record.getReturnFee3() == null || record.getReturnFee3() == 0) {
-            record.setReturnFee3(amount);
-        } else if (record.getReturnFee4() == null || record.getReturnFee4() == 0) {
-            record.setReturnFee4(amount);
-        } else {
-            throw new BucketOverflowException("No Empty ReturnFee columns remaining");
-        }
-
-        String note = "Return Fee: " + amountType + ", ";
-        record.setNotes((record.getNotes() == null ? note : record.getNotes().concat(note)));
-    }
-
     private WalmartRawTransaction buildAuditRow(Row row, Map<WalmartColumn, Integer> headerMap, String compositeTransactionId) {
         return WalmartRawTransaction.builder()
                 .compositeTransactionId(compositeTransactionId)
-                .transactionKey(getStringSafe(row, headerMap, WalmartColumn.TRANSACTION_KEY))
-                .transactionPostedTimestamp(getDateSafe(row, headerMap, WalmartColumn.TRANSACTION_POSTED_TIMESTAMP))
-                .transactionType(getStringSafe(row, headerMap, WalmartColumn.TRANSACTION_TYPE))
-                .transactionDesc(getStringSafe(row, headerMap, WalmartColumn.TRANSACTION_DESC))
-                .customerOrder(getStringSafe(row, headerMap, WalmartColumn.CUSTOMER_ORDER))
-                .customerOrderLine(getStringSafe(row, headerMap, WalmartColumn.CUSTOMER_ORDER_LINE))
-                .purchaseOrder(getStringSafe(row, headerMap, WalmartColumn.PURCHASE_ORDER))
-                .purchaseOrderLine(getStringSafe(row, headerMap, WalmartColumn.PURCHASE_ORDER_LINE))
-                .amount(getDoubleSafe(row, headerMap, WalmartColumn.AMOUNT))
-                .amountType(getStringSafe(row, headerMap, WalmartColumn.AMOUNT_TYPE))
-                .shipQty(getDoubleSafe(row, headerMap, WalmartColumn.SHIP_QTY))
-                .commissionRate(getDoubleSafe(row, headerMap, WalmartColumn.COMMISSION_RATE))
-                .baseCommissionRate(getDoubleSafe(row, headerMap, WalmartColumn.BASE_COMMISSION_RATE))
-                .transactionReasonDesc(getStringSafe(row, headerMap, WalmartColumn.TRANSACTION_REASON_DESC))
-                .partnerItemId(getStringSafe(row, headerMap, WalmartColumn.SKU))
-                .partnerGtIn(getStringSafe(row, headerMap, WalmartColumn.PARTNER_GTIN))
-                .partnerItemName(getStringSafe(row, headerMap, WalmartColumn.PARTNER_ITEM_NAME))
-                .productTaxCode(getStringSafe(row, headerMap, WalmartColumn.PRODUCT_TAX_CODE))
-                .shipToState(getStringSafe(row, headerMap, WalmartColumn.SHIP_TO_STATE))
-                .shipToCity(getStringSafe(row, headerMap, WalmartColumn.SHIP_TO_CITY))
-                .shipToZipcode(getStringSafe(row, headerMap, WalmartColumn.SHIP_TO_ZIPCODE))
-                .contractCategory(getStringSafe(row, headerMap, WalmartColumn.CONTRACT_CATEGORY))
-                .productType(getStringSafe(row, headerMap, WalmartColumn.PRODUCT_TYPE))
-                .commissionRule(getStringSafe(row, headerMap, WalmartColumn.COMMISSION_RULE))
-                .shippingMethod(getStringSafe(row, headerMap, WalmartColumn.SHIPPING_METHOD))
-                .fulfillmentType(getStringSafe(row, headerMap, WalmartColumn.FULFILLMENT_TYPE))
-                .fulfillmentDetails(getStringSafe(row, headerMap, WalmartColumn.FULFILLMENT_DETAILS))
-                .originalCommission(getDoubleSafe(row, headerMap, WalmartColumn.ORIGINAL_COMMISSION))
-                .commissionIncentiveProgram(getDoubleSafe(row, headerMap, WalmartColumn.COMMISSION_INCENTIVE_PROGRAM))
-                .commissionSaving(getDoubleSafe(row, headerMap, WalmartColumn.COMMISSION_SAVING))
-                .customerPromoType(getStringSafe(row, headerMap, WalmartColumn.CUSTOMER_PROMO_TYPE))
-                .totalWalmartFundedSavings(getDoubleSafe(row, headerMap, WalmartColumn.TOTAL_WALMART_FUNDED_SAVINGS))
-                .campaignId(getStringSafe(row, headerMap, WalmartColumn.CAMPAIGN_ID))
-                .itemCondition(getStringSafe(row, headerMap, WalmartColumn.ITEM_CONDITION))
-                .originalCharge(getDoubleSafe(row, headerMap, WalmartColumn.ORIGINAL_CHARGE))
-                .chargeSavings(getDoubleSafe(row, headerMap, WalmartColumn.CHARGE_SAVINGS))
-                .incentiveProgramName(getStringSafe(row, headerMap, WalmartColumn.INCENTIVE_PROGRAM_NAME))
-                .shipToCountry(getStringSafe(row, headerMap, WalmartColumn.SHIP_TO_COUNTRY))
+                .transactionKey(ExcelUtils.getStringSafe(row, headerMap, WalmartColumn.TRANSACTION_KEY))
+                .transactionPostedTimestamp(ExcelUtils.getDateSafe(row, headerMap, WalmartColumn.TRANSACTION_POSTED_TIMESTAMP))
+                .transactionType(ExcelUtils.getStringSafe(row, headerMap, WalmartColumn.TRANSACTION_TYPE))
+                .transactionDesc(ExcelUtils.getStringSafe(row, headerMap, WalmartColumn.TRANSACTION_DESC))
+                .customerOrder(ExcelUtils.getStringSafe(row, headerMap, WalmartColumn.CUSTOMER_ORDER))
+                .customerOrderLine(ExcelUtils.getStringSafe(row, headerMap, WalmartColumn.CUSTOMER_ORDER_LINE))
+                .purchaseOrder(ExcelUtils.getStringSafe(row, headerMap, WalmartColumn.PURCHASE_ORDER))
+                .purchaseOrderLine(ExcelUtils.getStringSafe(row, headerMap, WalmartColumn.PURCHASE_ORDER_LINE))
+                .amount(ExcelUtils.getDoubleSafe(row, headerMap, WalmartColumn.AMOUNT))
+                .amountType(ExcelUtils.getStringSafe(row, headerMap, WalmartColumn.AMOUNT_TYPE))
+                .shipQty(ExcelUtils.getDoubleSafe(row, headerMap, WalmartColumn.SHIP_QTY))
+                .commissionRate(ExcelUtils.getDoubleSafe(row, headerMap, WalmartColumn.COMMISSION_RATE))
+                .baseCommissionRate(ExcelUtils.getDoubleSafe(row, headerMap, WalmartColumn.BASE_COMMISSION_RATE))
+                .transactionReasonDesc(ExcelUtils.getStringSafe(row, headerMap, WalmartColumn.TRANSACTION_REASON_DESC))
+                .partnerItemId(ExcelUtils.getStringSafe(row, headerMap, WalmartColumn.SKU))
+                .partnerGtIn(ExcelUtils.getStringSafe(row, headerMap, WalmartColumn.PARTNER_GTIN))
+                .partnerItemName(ExcelUtils.getStringSafe(row, headerMap, WalmartColumn.PARTNER_ITEM_NAME))
+                .productTaxCode(ExcelUtils.getStringSafe(row, headerMap, WalmartColumn.PRODUCT_TAX_CODE))
+                .shipToState(ExcelUtils.getStringSafe(row, headerMap, WalmartColumn.SHIP_TO_STATE))
+                .shipToCity(ExcelUtils.getStringSafe(row, headerMap, WalmartColumn.SHIP_TO_CITY))
+                .shipToZipcode(ExcelUtils.getStringSafe(row, headerMap, WalmartColumn.SHIP_TO_ZIPCODE))
+                .contractCategory(ExcelUtils.getStringSafe(row, headerMap, WalmartColumn.CONTRACT_CATEGORY))
+                .productType(ExcelUtils.getStringSafe(row, headerMap, WalmartColumn.PRODUCT_TYPE))
+                .commissionRule(ExcelUtils.getStringSafe(row, headerMap, WalmartColumn.COMMISSION_RULE))
+                .shippingMethod(ExcelUtils.getStringSafe(row, headerMap, WalmartColumn.SHIPPING_METHOD))
+                .fulfillmentType(ExcelUtils.getStringSafe(row, headerMap, WalmartColumn.FULFILLMENT_TYPE))
+                .fulfillmentDetails(ExcelUtils.getStringSafe(row, headerMap, WalmartColumn.FULFILLMENT_DETAILS))
+                .originalCommission(ExcelUtils.getDoubleSafe(row, headerMap, WalmartColumn.ORIGINAL_COMMISSION))
+                .commissionIncentiveProgram(ExcelUtils.getDoubleSafe(row, headerMap, WalmartColumn.COMMISSION_INCENTIVE_PROGRAM))
+                .commissionSaving(ExcelUtils.getDoubleSafe(row, headerMap, WalmartColumn.COMMISSION_SAVING))
+                .customerPromoType(ExcelUtils.getStringSafe(row, headerMap, WalmartColumn.CUSTOMER_PROMO_TYPE))
+                .totalWalmartFundedSavings(ExcelUtils.getDoubleSafe(row, headerMap, WalmartColumn.TOTAL_WALMART_FUNDED_SAVINGS))
+                .campaignId(ExcelUtils.getStringSafe(row, headerMap, WalmartColumn.CAMPAIGN_ID))
+                .itemCondition(ExcelUtils.getStringSafe(row, headerMap, WalmartColumn.ITEM_CONDITION))
+                .originalCharge(ExcelUtils.getDoubleSafe(row, headerMap, WalmartColumn.ORIGINAL_CHARGE))
+                .chargeSavings(ExcelUtils.getDoubleSafe(row, headerMap, WalmartColumn.CHARGE_SAVINGS))
+                .incentiveProgramName(ExcelUtils.getStringSafe(row, headerMap, WalmartColumn.INCENTIVE_PROGRAM_NAME))
+                .shipToCountry(ExcelUtils.getStringSafe(row, headerMap, WalmartColumn.SHIP_TO_COUNTRY))
                 .build();
     }
 
     private WalmartSuspense buildSuspenseRow(Row row, Map<WalmartColumn, Integer> headerMap, String reason) {
-        return WalmartSuspense.builder()
-                .errorReason(reason)
-                .transactionKey(getStringSafe(row, headerMap, WalmartColumn.TRANSACTION_KEY))
-                .transactionPostedTimestamp(getDateSafe(row, headerMap, WalmartColumn.TRANSACTION_POSTED_TIMESTAMP))
-                .transactionType(getStringSafe(row, headerMap, WalmartColumn.TRANSACTION_TYPE))
-                .transactionDesc(getStringSafe(row, headerMap, WalmartColumn.TRANSACTION_DESC))
-                .customerOrder(getStringSafe(row, headerMap, WalmartColumn.CUSTOMER_ORDER))
-                .customerOrderLine(getStringSafe(row, headerMap, WalmartColumn.CUSTOMER_ORDER_LINE))
-                .purchaseOrder(getStringSafe(row, headerMap, WalmartColumn.PURCHASE_ORDER))
-                .purchaseOrderLine(getStringSafe(row, headerMap, WalmartColumn.PURCHASE_ORDER_LINE))
-                .amount(getDoubleSafe(row, headerMap, WalmartColumn.AMOUNT))
-                .amountType(getStringSafe(row, headerMap, WalmartColumn.AMOUNT_TYPE))
-                .shipQty(getDoubleSafe(row, headerMap, WalmartColumn.SHIP_QTY))
-                .commissionRate(getDoubleSafe(row, headerMap, WalmartColumn.COMMISSION_RATE))
-                .baseCommissionRate(getDoubleSafe(row, headerMap, WalmartColumn.BASE_COMMISSION_RATE))
-                .transactionReasonDesc(getStringSafe(row, headerMap, WalmartColumn.TRANSACTION_REASON_DESC))
-                .partnerItemId(getStringSafe(row, headerMap, WalmartColumn.SKU))
-                .partnerGtIn(getStringSafe(row, headerMap, WalmartColumn.PARTNER_GTIN))
-                .partnerItemName(getStringSafe(row, headerMap, WalmartColumn.PARTNER_ITEM_NAME))
-                .productTaxCode(getStringSafe(row, headerMap, WalmartColumn.PRODUCT_TAX_CODE))
-                .shipToState(getStringSafe(row, headerMap, WalmartColumn.SHIP_TO_STATE))
-                .shipToCity(getStringSafe(row, headerMap, WalmartColumn.SHIP_TO_CITY))
-                .shipToZipcode(getStringSafe(row, headerMap, WalmartColumn.SHIP_TO_ZIPCODE))
-                .contractCategory(getStringSafe(row, headerMap, WalmartColumn.CONTRACT_CATEGORY))
-                .productType(getStringSafe(row, headerMap, WalmartColumn.PRODUCT_TYPE))
-                .commissionRule(getStringSafe(row, headerMap, WalmartColumn.COMMISSION_RULE))
-                .shippingMethod(getStringSafe(row, headerMap, WalmartColumn.SHIPPING_METHOD))
-                .fulfillmentType(getStringSafe(row, headerMap, WalmartColumn.FULFILLMENT_TYPE))
-                .fulfillmentDetails(getStringSafe(row, headerMap, WalmartColumn.FULFILLMENT_DETAILS))
-                .originalCommission(getDoubleSafe(row, headerMap, WalmartColumn.ORIGINAL_COMMISSION))
-                .commissionIncentiveProgram(getDoubleSafe(row, headerMap, WalmartColumn.COMMISSION_INCENTIVE_PROGRAM))
-                .commissionSaving(getDoubleSafe(row, headerMap, WalmartColumn.COMMISSION_SAVING))
-                .customerPromoType(getStringSafe(row, headerMap, WalmartColumn.CUSTOMER_PROMO_TYPE))
-                .totalWalmartFundedSavings(getDoubleSafe(row, headerMap, WalmartColumn.TOTAL_WALMART_FUNDED_SAVINGS))
-                .campaignId(getStringSafe(row, headerMap, WalmartColumn.CAMPAIGN_ID))
-                .itemCondition(getStringSafe(row, headerMap, WalmartColumn.ITEM_CONDITION))
-                .originalCharge(getDoubleSafe(row, headerMap, WalmartColumn.ORIGINAL_CHARGE))
-                .chargeSavings(getDoubleSafe(row, headerMap, WalmartColumn.CHARGE_SAVINGS))
-                .incentiveProgramName(getStringSafe(row, headerMap, WalmartColumn.INCENTIVE_PROGRAM_NAME))
-                .shipToCountry(getStringSafe(row, headerMap, WalmartColumn.SHIP_TO_COUNTRY))
-                .build();
-    }
-
-    // SAFE EXTRACTION UTILS
-    private String getStringSafe(Row row, Map<WalmartColumn, Integer> headerMap, WalmartColumn col) {
-        if (!headerMap.containsKey(col)) return null;
-        return ExcelUtils.getStringValue(row.getCell(headerMap.get(col)));
-    }
-
-    private Double getDoubleSafe(Row row, Map<WalmartColumn, Integer> headerMap, WalmartColumn col) {
-        if (!headerMap.containsKey(col)) return null;
-        Cell cell = row.getCell(headerMap.get(col));
-        if (cell == null || cell.getCellType() == CellType.BLANK) return null;
-        return ExcelUtils.getDoubleValue(cell);
-    }
-
-    private LocalDateTime getDateSafe(Row row, Map<WalmartColumn, Integer> headerMap, WalmartColumn col) {
-        if (!headerMap.containsKey(col)) return null;
-        Cell cell = row.getCell(headerMap.get(col));
-        if (cell != null && cell.getCellType() != CellType.BLANK && DateUtil.isCellDateFormatted(cell)) {
-            return cell.getLocalDateTimeCellValue();
-        }
-        return null;
+        WalmartRawTransaction baseData = buildAuditRow(row, headerMap, null);
+        WalmartSuspense suspenseRow = new WalmartSuspense();
+        BeanUtils.copyProperties(baseData, suspenseRow);
+        suspenseRow.setErrorReason(reason);
+        return suspenseRow;
     }
 }
