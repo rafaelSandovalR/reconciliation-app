@@ -56,19 +56,20 @@ public class WalmartParserService {
 
                 WalmartRawTransaction auditRow = buildAuditRow(row, headerMap);
 
-                // Extract core routing variables
-                String purchaseOrder = auditRow.getPurchaseOrder() != null ? auditRow.getPurchaseOrder().trim().toUpperCase() : "";
-                String sku = auditRow.getPartnerItemId() != null ? auditRow.getPartnerItemId().trim().toUpperCase() : "";
+                // Identifiers (Preserve original casing, just trim)
+                String purchaseOrder = auditRow.getPurchaseOrder() != null ? auditRow.getPurchaseOrder().trim() : "";
+                String sku = auditRow.getPartnerItemId() != null ? auditRow.getPartnerItemId().trim() : "";
+                String transactionKey = auditRow.getTransactionKey() != null ? auditRow.getTransactionKey().trim() : "";
                 if (purchaseOrder.isEmpty() || sku.isEmpty()) {
                     errorSuspense.add(buildSuspenseRow(auditRow, "Skipped: Missing Purchase Order or SKU (Non-order line item)"));
                     continue;
                 };
-
                 String compositeId = purchaseOrder + "-" + sku;
+
+                // Routing Variables (Need UpperCase for switch cases)
                 String transactionType = auditRow.getTransactionType() != null ? auditRow.getTransactionType().trim().toUpperCase() : "";
                 String transactionDesc = auditRow.getTransactionDesc() != null ? auditRow.getTransactionDesc().trim().toUpperCase() : "";
                 String amountType = auditRow.getAmountType() != null ? auditRow.getAmountType().trim().toUpperCase() : "";
-                String transactionKey = auditRow.getTransactionKey() != null ? auditRow.getTransactionKey().trim().toUpperCase() : "";
 
                 double rawAmount = auditRow.getAmount() != null ? auditRow.getAmount() : 0.0;
                 double invertedAmount = rawAmount * -1;
