@@ -1,12 +1,11 @@
 package com.apex.reconciliation_app.controller;
 
 import com.apex.reconciliation_app.dto.MarketplaceParseResult;
+import com.apex.reconciliation_app.model.AmazonRawTransaction;
+import com.apex.reconciliation_app.model.AmazonSuspense;
 import com.apex.reconciliation_app.model.WalmartRawTransaction;
 import com.apex.reconciliation_app.model.WalmartSuspense;
-import com.apex.reconciliation_app.service.WalmartReportService;
-import com.apex.reconciliation_app.service.ExportService;
-import com.apex.reconciliation_app.service.RithumParserService;
-import com.apex.reconciliation_app.service.WalmartParserService;
+import com.apex.reconciliation_app.service.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpHeaders;
@@ -27,8 +26,12 @@ public class FileUploadController {
 
     private final RithumParserService rithumParserService;
     private final ExportService exportService;
+
     private final WalmartParserService walmartParserService;
     private final WalmartReportService walmartReportService;
+
+    private final AmazonParserService amazonParserService;
+    private final AmazonReportService amazonReportService;
 
     @PostMapping("/rithum")
     public ResponseEntity<?> uploadRithumFile(@RequestParam("file") MultipartFile file) {
@@ -59,6 +62,30 @@ public class FileUploadController {
 
             HttpHeaders headers = new HttpHeaders();
             headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=walmart_upload_receipt.xlsx");
+
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                    .body(resource);
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Could not process the file: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/amazon")
+    public ResponseEntity<?> uploadAmazonFile(@RequestParam("file") MultipartFile file) {
+        if (file.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Please select a file to upload.");
+        }
+
+        try {
+            MarketplaceParseResult<AmazonSuspense, AmazonRawTransaction> result = amazonParserService.parseAndUpdate(file.getInputStream());
+            InputStreamResource resource = new InputStreamResource(amazonReportService.generateReport(result));
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=amazon_upload_receipt.xlsx");
 
             return ResponseEntity.ok()
                     .headers(headers)
