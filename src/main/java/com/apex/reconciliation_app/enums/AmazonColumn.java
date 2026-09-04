@@ -1,6 +1,5 @@
 package com.apex.reconciliation_app.enums;
 
-import com.apex.reconciliation_app.util.ExcelUtils;
 import lombok.Getter;
 
 @Getter
@@ -24,7 +23,7 @@ public enum AmazonColumn implements ExcelColumn {
     SHIPPING_CREDITS("shipping credits"),
     SHIPPING_CREDITS_TAX("shipping credits tax"),
     GIFT_WRAP_CREDITS("gift wrap credits"),
-    GIFTWRAP_CREDITS_TAX("giftwrap credits tax"),
+    GIFT_WRAP_CREDITS_TAX("gift wrap credits tax"),
     REGULATORY_FEE("Regulatory Fee"),
     TAX_ON_REGULATORY_FEE("Tax On Regulatory Fee"),
     PROMOTIONAL_REBATES("promotional rebates"),

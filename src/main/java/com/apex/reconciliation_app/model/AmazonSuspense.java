@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class AmazonSuspense {
+public class AmazonSuspense implements AmazonTransactionData{
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -52,11 +52,11 @@ public class AmazonSuspense {
     private Double shippingCredits;
     private Double shippingCreditsTax;
     private Double giftWrapCredits;
-    private Double giftWrapCreditTax;
+    private Double giftWrapCreditsTax;
     private Double RegulatoryFee;
     private Double taxOnRegulatoryFee;
     private Double promotionalRebates;
-    private Double promotionalRebatestax;
+    private Double promotionalRebatesTax;
     private Double marketplaceWithheldTax;
     private Double sellingFees;
     private Double fbaFees;

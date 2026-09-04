@@ -52,7 +52,7 @@ public class AmazonParserService {
                 if (orderId.isEmpty()) {
                     errorSuspense.add(buildSuspenseRow(auditRow, "Skipped: Missing Purchase Order(Non-order line item)"));
                     continue;
-                };
+                }
 
                 // Routing Variables
                 String type = auditRow.getType() != null ? auditRow.getType().trim().toUpperCase() : "";
@@ -234,11 +234,11 @@ public class AmazonParserService {
                 .shippingCredits(ExcelUtils.getDoubleSafe(row, headerMap, AmazonColumn.SHIPPING_CREDITS))
                 .shippingCreditsTax(ExcelUtils.getDoubleSafe(row, headerMap, AmazonColumn.SHIPPING_CREDITS_TAX))
                 .giftWrapCredits(ExcelUtils.getDoubleSafe(row, headerMap, AmazonColumn.GIFT_WRAP_CREDITS))
-                .giftWrapCreditTax(ExcelUtils.getDoubleSafe(row, headerMap, AmazonColumn.GIFTWRAP_CREDITS_TAX))
+                .giftWrapCreditsTax(ExcelUtils.getDoubleSafe(row, headerMap, AmazonColumn.GIFT_WRAP_CREDITS_TAX))
                 .RegulatoryFee(ExcelUtils.getDoubleSafe(row, headerMap, AmazonColumn.REGULATORY_FEE))
                 .taxOnRegulatoryFee(ExcelUtils.getDoubleSafe(row, headerMap, AmazonColumn.TAX_ON_REGULATORY_FEE))
                 .promotionalRebates(ExcelUtils.getDoubleSafe(row, headerMap, AmazonColumn.PROMOTIONAL_REBATES))
-                .promotionalRebatestax(ExcelUtils.getDoubleSafe(row, headerMap, AmazonColumn.PROMOTIONAL_REBATES_TAX))
+                .promotionalRebatesTax(ExcelUtils.getDoubleSafe(row, headerMap, AmazonColumn.PROMOTIONAL_REBATES_TAX))
                 .marketplaceWithheldTax(ExcelUtils.getDoubleSafe(row, headerMap, AmazonColumn.MARKETPLACE_WITHHELD_TAX))
                 .sellingFees(ExcelUtils.getDoubleSafe(row, headerMap, AmazonColumn.SELLING_FEES))
                 .fbaFees(ExcelUtils.getDoubleSafe(row, headerMap, AmazonColumn.FBA_FEES))
