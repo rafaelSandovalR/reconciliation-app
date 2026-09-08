@@ -3,129 +3,321 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reconciliation Dashboard</title>
+    <title>SYS // RECONCILIATION TERMINAL</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 40px; background-color: #f4f7f6; color: #333; }
-        h1 { text-align: center; margin-bottom: 40px; color: #2c3e50; }
+        :root {
+            --bg-color: #050505; /* Obsidian Black */
+            --term-color: #ffb000; /* Wallace Amber */
+            --term-dim: #7a5c00;
+            --alert-color: #ff3333;
+            --success-color: #00ff66;
+            --border-style: 1px solid var(--term-dim);
+            --font-mono: "Courier New", Courier, monospace;
+        }
 
-        .dashboard-container { display: flex; flex-direction: column; gap: 30px; max-width: 800px; margin: 0 auto; }
-        .card { background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-left: 5px solid #3498db; }
-        .card.export { border-left-color: #27ae60; }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
 
-        .card h2 { margin-top: 0; font-size: 1.4rem; color: #2c3e50; }
-        .card p { color: #7f8c8d; margin-bottom: 15px; font-size: 0.95rem; }
+        body {
+            background-color: var(--bg-color);
+            color: var(--term-color);
+            font-family: var(--font-mono);
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
+            text-transform: uppercase;
+        }
 
-        input[type="file"] { margin-bottom: 15px; display: block; }
-        button { background-color: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 1rem; font-weight: bold; transition: background 0.3s; }
-        button:hover { background-color: #2980b9; }
-        .export button { background-color: #27ae60; }
-        .export button:hover { background-color: #219653; }
+        /* SPLIT PANE LAYOUT */
+        .panel-left {
+            width: 33.33%;
+            border-right: var(--border-style);
+            display: flex;
+            flex-direction: column;
+            padding: 30px;
+            justify-content: space-between;
+        }
 
-        .status { margin-top: 15px; font-weight: bold; font-size: 0.9rem; }
+        .panel-right {
+            width: 66.67%;
+            display: flex;
+            flex-direction: column;
+            padding: 30px;
+            background: #020202; /* Slightly darker for depth */
+        }
+
+        /* TYPOGRAPHY & HEADINGS */
+        h1, h2 {
+            font-size: 1.1rem;
+            letter-spacing: 2px;
+            border-bottom: var(--border-style);
+            padding-bottom: 15px;
+            margin-bottom: 25px;
+            font-weight: normal;
+        }
+
+        /* DROPZONE (UNIVERSAL UPLOAD) */
+        .dropzone-container {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .dropzone {
+            border: 1px dashed var(--term-color);
+            padding: 60px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: background 0.2s, box-shadow 0.2s;
+            position: relative;
+        }
+
+        .dropzone:hover, .dropzone.dragover {
+            background: rgba(255, 176, 0, 0.1);
+            box-shadow: inset 0 0 15px rgba(255, 176, 0, 0.2);
+        }
+
+        .dropzone input[type="file"] {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .dropzone p {
+            font-size: 0.9rem;
+            line-height: 1.5;
+            letter-spacing: 1px;
+        }
+
+        /* BUTTONS */
+        .btn {
+            background: transparent;
+            color: var(--term-color);
+            border: 1px solid var(--term-color);
+            padding: 18px;
+            width: 100%;
+            font-family: var(--font-mono);
+            font-size: 0.95rem;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 20px;
+            text-transform: uppercase;
+        }
+
+        .btn:hover {
+            background: var(--term-color);
+            color: var(--bg-color);
+        }
+
+        /* CONSOLE OUTPUT */
+        .console-window {
+            flex-grow: 1;
+            overflow-y: auto;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            padding-right: 15px;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-color); border-left: var(--border-style); }
+        ::-webkit-scrollbar-thumb { background: var(--term-dim); }
+        ::-webkit-scrollbar-thumb:hover { background: var(--term-color); }
+
+        /* Log Line Styling */
+        .log-line { margin-bottom: 6px; display: flex; }
+        .log-time { color: var(--term-dim); margin-right: 15px; white-space: nowrap; }
+        .log-msg { word-wrap: break-word; }
+        .log-msg.error { color: var(--alert-color); }
+        .log-msg.success { color: var(--success-color); }
+
+        .blinking-cursor {
+            display: inline-block;
+            width: 8px;
+            height: 15px;
+            background-color: var(--term-color);
+            animation: blink 1s step-end infinite;
+            vertical-align: middle;
+            margin-left: 5px;
+        }
+
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
     </style>
 </head>
 <body>
 
-<h1>Reconciliation Dashboard</h1>
-
-<div class="dashboard-container">
-
-    <!-- STEP 1: RITHUM -->
-    <div class="card">
-        <h2>Step 1: Base Rithum Data</h2>
-        <p>Upload the master Rithum report to generate the initial database records.</p>
-        <form id="rithumForm">
-            <input type="file" id="rithumFile" accept=".xlsx" required />
-            <button type="submit">Upload Rithum File</button>
-        </form>
-        <div id="rithumStatus" class="status"></div>
+<!-- LEFT PANEL: CONTROLS -->
+<div class="panel-left">
+    <div>
+        <h1>UPLOAD FILE</h1>
+        <div class="dropzone-container">
+            <div class="dropzone" id="dropzone">
+                <input type="file" id="universalFile" accept=".xlsx" />
+                <p>DRAG & DROP LEDGER FILE HERE</p>
+                <p style="color: var(--term-dim); margin-top: 10px; font-size: 0.75rem;">
+                    [ AUTO-DETECT: RITHUM | WALMART | AMAZON ]
+                </p>
+            </div>
+        </div>
     </div>
 
-    <!-- STEP 2: WALMART -->
-    <div class="card">
-        <h2>Step 2: Walmart Ledger</h2>
-        <p>Upload the Walmart transactional ledger to update existing records with exact fees and refunds.</p>
-        <form id="walmartForm">
-            <input type="file" id="walmartFile" accept=".xlsx" required />
-            <button type="submit">Upload Walmart File</button>
-        </form>
-        <div id="walmartStatus" class="status"></div>
+    <div>
+        <button class="btn" onclick="downloadMaster()">Download Master Export</button>
     </div>
+</div>
 
-    <!-- STEP 3: EXPORT -->
-    <div class="card export">
-        <h2>Step 3: Master Export</h2>
-        <p>Download the fully reconciled master spreadsheet.</p>
-        <!-- Updated to strict REST GET endpoint -->
-        <button onclick="window.location.href='/api/reconciliation/export'">Download Master Report</button>
+<!-- RIGHT PANEL: CONSOLE LOG -->
+<div class="panel-right">
+    <h2>APEX RECONCILIATION // PROCESS STREAM</h2>
+    <div class="console-window" id="consoleWindow">
+        <!-- Initial System Boot Message -->
+        <div class="log-line">
+            <span class="log-time" id="bootTime"></span>
+            <span class="log-msg">SYSTEM INITIALIZED. AWAITING DATA INPUT...</span>
+        </div>
     </div>
-
+    <div style="margin-top: 15px; color: var(--term-color);">
+        > <span class="blinking-cursor"></span>
+    </div>
 </div>
 
 <script>
-    async function handleUpload(formId, fileInputId, statusId, endpoint) {
-        document.getElementById(formId).addEventListener('submit', async function(e) {
-            e.preventDefault();
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('universalFile');
+    const consoleWindow = document.getElementById('consoleWindow');
 
-            const statusEl = document.getElementById(statusId);
-            statusEl.textContent = 'Uploading and processing...';
-            statusEl.style.color = '#f39c12';
+    // Set Initial Boot Time
+    document.getElementById('bootTime').textContent = getFormattedTime();
 
-            const formData = new FormData();
-            formData.append('file', document.getElementById(fileInputId).files[0]);
+    // --- UI LOGIC: DRAG AND DROP ---
+    dropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropzone.classList.add('dragover');
+    });
 
-            try {
-                const response = await fetch(endpoint, { method: 'POST', body: formData });
+    dropzone.addEventListener('dragleave', () => {
+        dropzone.classList.remove('dragover');
+    });
 
-                if (response.ok) {
-                    const contentType = response.headers.get('Content-Type');
+    dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('dragover');
+        if (e.dataTransfer.files.length) {
+            fileInput.files = e.dataTransfer.files;
+            processFile(fileInput.files[0]);
+        }
+    });
 
-                    if (contentType && contentType.includes('spreadsheetml')) {
-                        // SCENARIO B: Exceptions Report file received
-                        const blob = await response.blob();
-                        const downloadUrl = window.URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.style.display = 'none';
-                        a.href = downloadUrl;
+    fileInput.addEventListener('change', function() {
+        if (this.files.length) {
+            processFile(this.files[0]);
+        }
+    });
 
-                        let filename = 'exceptions_report.xlsx';
-                        const disposition = response.headers.get('Content-Disposition');
-                        if (disposition && disposition.includes('filename=')) {
-                            filename = disposition.split('filename=')[1].replace(/['"]/g, '');
-                        }
+    // --- CORE LOGIC: FILE UPLOAD ---
+    async function processFile(file) {
+        logToConsole(`INITIATING UPLOAD: ${file.name}`);
 
-                        a.download = filename;
-                        document.body.appendChild(a);
-                        a.click();
+        const formData = new FormData();
+        formData.append('file', file);
 
-                        window.URL.revokeObjectURL(downloadUrl);
-                        a.remove();
+        try {
+            const response = await fetch('/api/reconciliation/upload', {
+                method: 'POST',
+                body: formData
+            });
 
-                        statusEl.style.color = '#e67e22';
-                        statusEl.textContent = '⚠ Processed with exceptions. Error report downloaded.';
+            if (response.ok) {
+                const contentType = response.headers.get('Content-Type');
 
-                    } else {
-                        // SCENARIO A: Perfect file, read as text
-                        const resultText = await response.text();
-                        statusEl.style.color = '#27ae60';
-                        statusEl.textContent = '✓ ' + resultText;
-                    }
-
+                if (contentType && contentType.includes('spreadsheetml')) {
+                    // SCENARIO B: Exception Receipt
+                    await triggerDownload(response, 'exceptions_receipt.xlsx');
+                    logToConsole(`PROCESSING COMPLETE WITH SUSPENSE ITEMS. RECEIPT DOWNLOADED.`, 'error');
                 } else {
-                    const errorText = await response.text();
-                    statusEl.style.color = '#c0392b';
-                    statusEl.textContent = '✗ Error: ' + errorText;
+                    // SCENARIO A: Text Success (e.g., Rithum)
+                    const resultText = await response.text();
+
+                    // Split the backend print statements by newline to make it look like a real terminal
+                    const lines = resultText.split('\n').filter(line => line.trim() !== '');
+                    lines.forEach(line => logToConsole(line, 'success'));
                 }
-            } catch (error) {
-                statusEl.style.color = '#c0392b';
-                statusEl.textContent = '✗ Network error occurred.';
+            } else {
+                const errorText = await response.text();
+                logToConsole(`ERR: ${errorText}`, 'error');
             }
-        });
+        } catch (error) {
+            logToConsole(`CRITICAL FAILURE: NETWORK DISCONNECT`, 'error');
+        }
+
+        // Reset file input so you can upload the same file again if needed
+        fileInput.value = '';
     }
 
-    // Updated endpoints to strict REST POST routes
-    handleUpload('rithumForm', 'rithumFile', 'rithumStatus', '/api/reconciliation/rithum');
-    handleUpload('walmartForm', 'walmartFile', 'walmartStatus', '/api/reconciliation/walmart');
+    // --- CORE LOGIC: DOWNLOAD MASTER ---
+    function downloadMaster() {
+        logToConsole('COMPILING MASTER FINANCIAL LEDGER...');
+        window.location.href = '/api/reconciliation/export';
+        setTimeout(() => {
+            logToConsole('EXPORT COMMAND TRANSMITTED.', 'success');
+        }, 1000);
+    }
+
+    // --- HELPERS: TERMINAL LOGGING ---
+    async function triggerDownload(response, fallbackName) {
+        const blob = await response.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = downloadUrl;
+
+        let filename = fallbackName;
+        const disposition = response.headers.get('Content-Disposition');
+        if (disposition && disposition.includes('filename=')) {
+            filename = disposition.split('filename=')[1].replace(/['"]/g, '');
+        }
+
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(downloadUrl);
+        a.remove();
+    }
+
+    function logToConsole(message, type = 'normal') {
+        const line = document.createElement('div');
+        line.className = 'log-line';
+
+        const time = document.createElement('span');
+        time.className = 'log-time';
+        time.textContent = getFormattedTime();
+
+        const text = document.createElement('span');
+        text.className = `log-msg ${type}`;
+        text.textContent = message;
+
+        line.appendChild(time);
+        line.appendChild(text);
+        consoleWindow.appendChild(line);
+
+        // Auto-scroll to bottom
+        consoleWindow.scrollTop = consoleWindow.scrollHeight;
+    }
+
+    function getFormattedTime() {
+        const now = new Date();
+        return `[${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}]`;
+    }
 </script>
 </body>
 </html>
