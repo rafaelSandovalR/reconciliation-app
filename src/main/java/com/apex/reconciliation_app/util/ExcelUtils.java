@@ -1,7 +1,6 @@
 package com.apex.reconciliation_app.util;
 
 import com.apex.reconciliation_app.enums.ExcelColumn;
-import com.apex.reconciliation_app.enums.WalmartColumn;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.DateUtil;
@@ -41,6 +40,18 @@ public class ExcelUtils {
         if (cell == null) return 0.0;
         return switch (cell.getCellType()) {
             case NUMERIC -> cell.getNumericCellValue();
+            case FORMULA -> {
+                if (cell.getCachedFormulaResultType() == CellType.NUMERIC) {
+                    yield cell.getNumericCellValue();
+                } else if (cell.getCachedFormulaResultType() == CellType.STRING) {
+                    try {
+                        yield Double.parseDouble(cell.getStringCellValue());
+                    } catch (NumberFormatException e) {
+                        yield 0.0;
+                    }
+                }
+                yield 0.0;
+            }
             case STRING -> {
                 try {
                     yield Double.parseDouble(cell.getStringCellValue().replace("$", "").trim());
