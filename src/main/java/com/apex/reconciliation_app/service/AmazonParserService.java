@@ -176,11 +176,10 @@ public class AmazonParserService {
                                 default -> record.addDynamicRegularFee(splitOther, "UNMAPPED SHIPPING SERVICE: " + description);
                             }
                         }
-                        default -> {
+                        default ->
                             // Safety net: Catches any NEW order-level transaction types Amazon might invent in the future
                             actionableSuspense.add(buildSuspenseRow(auditRow, "Action Required: Unmapped Transaction Type (" + type + ") found for Order."));
-                            continue;
-                        }
+
                     }
                 }
                 // Add survivors to audit trail
@@ -209,7 +208,7 @@ public class AmazonParserService {
             return new MarketplaceParseResult<>(allReceiptErrors, auditTrail);
 
         } catch (Exception e) {
-            throw new RuntimeException("Failed to parse Walmart Excel file: " + e.getMessage());
+            throw new RuntimeException("Failed to parse Amazon Excel file: " + e.getMessage());
         }
     }
 

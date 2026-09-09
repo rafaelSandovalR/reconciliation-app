@@ -54,7 +54,7 @@ public class ExcelUtils {
             }
             case STRING -> {
                 try {
-                    yield Double.parseDouble(cell.getStringCellValue().replace("$", "").trim());
+                    yield Double.parseDouble(cell.getStringCellValue().replace("$", "").replace(",", "").trim());
                 } catch (NumberFormatException e) {
                     yield 0.0;
                 }
@@ -92,7 +92,10 @@ public class ExcelUtils {
     public static <E extends Enum<E>>LocalDateTime getDateSafe(Row row, Map<E, Integer> headerMap, E col) {
         if(!headerMap.containsKey(col)) return null;
         Cell cell = row.getCell(headerMap.get(col));
-        if (cell != null && cell.getCellType() != CellType.BLANK && DateUtil.isCellDateFormatted(cell)) {
+
+        if (cell == null || cell.getCellType() == CellType.BLANK) return null;
+
+        if (cell.getCellType() == CellType.NUMERIC && DateUtil.isCellDateFormatted(cell)) {
             return cell.getLocalDateTimeCellValue();
         }
         return null;
