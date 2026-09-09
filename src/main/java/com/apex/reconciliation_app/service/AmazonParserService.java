@@ -139,7 +139,7 @@ public class AmazonParserService {
                         }
                         case "REFUND" -> {
                             record.setReturnStatus("Yes");
-                            record.setAmountRefunded((record.getAmountRefunded() != null ? record.getAmountRefunded() : 0.0) + productSales);
+                            record.setAmountRefunded((record.getAmountRefunded() != null ? record.getAmountRefunded() : 0.0) + productSales * -1);
                             record.setCommissionRefund((record.getCommissionRefund() != null ? record.getCommissionRefund() : 0.0) + sellingFees);
 
                             if (shippingCredits != 0) record.addDynamicReturnFee(shippingCredits, "SHIPPING CREDITS REFUND");

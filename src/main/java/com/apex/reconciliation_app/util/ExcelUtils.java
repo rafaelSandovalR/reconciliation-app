@@ -7,8 +7,11 @@ import org.apache.poi.ss.usermodel.DateUtil;
 import org.apache.poi.ss.usermodel.Row;
 
 import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 
 public class ExcelUtils {
@@ -95,8 +98,19 @@ public class ExcelUtils {
 
         if (cell == null || cell.getCellType() == CellType.BLANK) return null;
 
+        // Handle native excel format
         if (cell.getCellType() == CellType.NUMERIC && DateUtil.isCellDateFormatted(cell)) {
             return cell.getLocalDateTimeCellValue();
+        } else if (cell.getCellType() == CellType.STRING) {
+            // Handle plain-text format
+            String dateString = cell.getStringCellValue().replaceAll("\\s+", " ").trim();
+            if (dateString.isEmpty()) return null;
+            try {
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MMM d, yyyy h:mm:ss a z", Locale.ENGLISH);
+                return ZonedDateTime.parse(dateString, formatter).toLocalDateTime();
+            } catch (Exception e) {
+                return null;
+            }
         }
         return null;
     }
