@@ -63,7 +63,7 @@ public class WalmartParserService {
                 if (purchaseOrder.isEmpty() || sku.isEmpty()) {
                     errorSuspense.add(buildSuspenseRow(auditRow, "Skipped: Missing Purchase Order or SKU (Non-order line item)"));
                     continue;
-                };
+                }
                 String compositeId = purchaseOrder + "-" + sku;
 
                 // Routing Variables (Need UpperCase for switch cases)
@@ -111,7 +111,8 @@ public class WalmartParserService {
                         switch (amountType) {
                             case "PRODUCT PRICE" -> record.setSiteOrderAmount((record.getSiteOrderAmount() != null ? record.getSiteOrderAmount() : 0.0) + rawAmount);
                             case "COMMISSION ON PRODUCT" -> record.setSiteOrderFee((record.getSiteOrderFee() != null ? record.getSiteOrderFee() : 0.0) + invertedAmount);
-                            case "TOTAL WALMART FUNDED SAVINGS", "PROMO CODE", "OTHER TAX (FEES)" -> record.addDynamicRegularFee(invertedAmount, amountType);
+                            case "PRODUCT TAX", "PRODUCT TAX WITHHELD" -> {} // Omit tax rows from master report but add to audit trail
+                            default -> record.addDynamicRegularFee(invertedAmount, amountType);
                         }
                     }
                     case ("REFUND") -> {
@@ -123,7 +124,8 @@ public class WalmartParserService {
                         switch (amountType) {
                             case "PRODUCT PRICE" -> record.setAmountRefunded((record.getAmountRefunded() != null ? record.getAmountRefunded() : 0.0) + invertedAmount);
                             case "COMMISSION ON PRODUCT" -> record.setCommissionRefund((record.getCommissionRefund() != null ? record.getCommissionRefund() : 0.0) + invertedAmount);
-                            case "TOTAL WALMART FUNDED SAVINGS", "EXCESSREFUNDADJUSTMENT" -> record.addDynamicReturnFee(invertedAmount, amountType);
+                            case "PRODUCT TAX", "PRODUCT TAX WITHHELD" -> {}
+                            default -> record.addDynamicReturnFee(invertedAmount, amountType);
                         }
                     }
                 }
