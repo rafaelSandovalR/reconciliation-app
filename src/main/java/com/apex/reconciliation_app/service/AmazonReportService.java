@@ -61,7 +61,6 @@ public class AmazonReportService extends AbstractReportService<AmazonSuspense, A
         setCellValue(row.createCell(col++), record.getOtherTransactionFees());
         setCellValue(row.createCell(col++), record.getOther());
         setCellValue(row.createCell(col++), record.getTotal());
-        setCellValue(row.createCell(col++), record.getTotal());
         setCellValue(row.createCell(col++), record.getTransactionStatus());
         setCellValue(row.createCell(col++), record.getTransactionReleaseDate() != null ? record.getTransactionReleaseDate().format(formatter) : null);
     }

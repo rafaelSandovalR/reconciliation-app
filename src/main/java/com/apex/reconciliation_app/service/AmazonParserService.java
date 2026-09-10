@@ -40,7 +40,7 @@ public class AmazonParserService {
 
             // --- MAIN PROCESSING LOOP ---
             rowloop:
-            for (int i = 1; i < sheet.getLastRowNum(); i++) {
+            for (int i = 1; i <= sheet.getLastRowNum(); i++) {
                 Row row = sheet.getRow(i);
                 if (row == null) continue;
 
