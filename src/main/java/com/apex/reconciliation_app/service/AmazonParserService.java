@@ -75,13 +75,13 @@ public class AmazonParserService {
 
                 // Idempotency checks
                 if (processedLineIds.contains(compositeTransactionId)) {
-                    errorSuspense.add(buildSuspenseRow(auditRow, "Duplicate Record: Found multiple times in current upload"));
+                    errorSuspense.add(buildSuspenseRow(auditRow, "Duplicate record in upload file, already processed"));
                     continue;
                 }
                 processedLineIds.add(compositeTransactionId);
 
                 if (auditRepository.existsByCompositeTransactionId(compositeTransactionId)) {
-                    errorSuspense.add(buildSuspenseRow(auditRow, "Duplicate Record: Already processed in a previous upload"));
+                    errorSuspense.add(buildSuspenseRow(auditRow, "Already processed in a previous upload"));
                     continue;
                 }
 
@@ -117,6 +117,7 @@ public class AmazonParserService {
 
                 if (targetRecords.isEmpty()) {
                     actionableSuspense.add(buildSuspenseRow(auditRow, "Missing from Rithum base data"));
+                    continue;
                 }
 
                 int recordCount = targetRecords.size();

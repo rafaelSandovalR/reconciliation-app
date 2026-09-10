@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SYS // RECONCILIATION TERMINAL</title>
+    <title>Apex Reconciliation Terminal</title>
     <style>
         :root {
             --bg-color: #050505; /* Obsidian Black */
@@ -28,7 +28,6 @@
             height: 100vh;
             display: flex;
             overflow: hidden;
-            text-transform: uppercase;
         }
 
         /* SPLIT PANE LAYOUT */
@@ -183,7 +182,7 @@
         <!-- Initial System Boot Message -->
         <div class="log-line">
             <span class="log-time" id="bootTime"></span>
-            <span class="log-msg">SYSTEM INITIALIZED. AWAITING DATA INPUT...</span>
+            <span class="log-msg">System initialized. Awaiting data input...</span>
         </div>
     </div>
     <div style="margin-top: 15px; color: var(--term-color);">
@@ -226,7 +225,7 @@
 
     // --- CORE LOGIC: FILE UPLOAD ---
     async function processFile(file) {
-        logToConsole(`INITIATING UPLOAD: ${file.name}`);
+        logToConsole(`Initiating upload: ${file.name}`);
 
         const formData = new FormData();
         formData.append('file', file);
@@ -243,7 +242,7 @@
                 if (contentType && contentType.includes('spreadsheetml')) {
                     // SCENARIO B: Exception Receipt
                     await triggerDownload(response, 'exceptions_receipt.xlsx');
-                    logToConsole(`PROCESSING COMPLETE WITH SUSPENSE ITEMS. RECEIPT DOWNLOADED.`, 'success');
+                    logToConsole(`Processing complete (with suspense items). Receipt downloaded.`, 'success');
                 } else {
                     // SCENARIO A: Text Success (e.g., Rithum)
                     const resultText = await response.text();
@@ -266,10 +265,10 @@
 
     // --- CORE LOGIC: DOWNLOAD MASTER ---
     function downloadMaster() {
-        logToConsole('COMPILING MASTER FINANCIAL LEDGER...');
+        logToConsole('Compiling Master Reconciliation Report...');
         window.location.href = '/api/reconciliation/export';
         setTimeout(() => {
-            logToConsole('EXPORT COMMAND TRANSMITTED.', 'success');
+            logToConsole('Export command transmitted.', 'success');
         }, 1000);
     }
 
