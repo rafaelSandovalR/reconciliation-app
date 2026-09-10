@@ -39,7 +39,7 @@ public class AmazonParserService {
             Set<String> processedLineIds = new HashSet<>();
 
             // --- MAIN PROCESSING LOOP ---
-                // ADD LOGIC
+            rowloop:
             for (int i = 1; i < sheet.getLastRowNum(); i++) {
                 Row row = sheet.getRow(i);
                 if (row == null) continue;
@@ -177,9 +177,11 @@ public class AmazonParserService {
                                 default -> record.addDynamicRegularFee(splitOther, "UNMAPPED SHIPPING SERVICE: " + description);
                             }
                         }
-                        default ->
+                        default ->{
                             // Safety net: Catches any NEW order-level transaction types Amazon might invent in the future
                             actionableSuspense.add(buildSuspenseRow(auditRow, "Action Required: Unmapped Transaction Type (" + type + ") found for Order."));
+                            continue rowloop;
+                        }
 
                     }
                 }
