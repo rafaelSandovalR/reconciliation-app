@@ -1,10 +1,7 @@
 package com.apex.reconciliation_app.controller;
 
 import com.apex.reconciliation_app.dto.MarketplaceParseResult;
-import com.apex.reconciliation_app.model.AmazonRawTransaction;
-import com.apex.reconciliation_app.model.AmazonSuspense;
-import com.apex.reconciliation_app.model.WalmartRawTransaction;
-import com.apex.reconciliation_app.model.WalmartSuspense;
+import com.apex.reconciliation_app.model.*;
 import com.apex.reconciliation_app.service.*;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
@@ -36,6 +33,9 @@ public class FileUploadController {
     private final AmazonParserService amazonParserService;
     private final AmazonReportService amazonReportService;
 
+    private final EbayParserService ebayParserService;
+    private final EbayReportService ebayReportService;
+
 
     @PostMapping("/upload")
     public ResponseEntity<?> uploadUniversalFile(@RequestParam("file") MultipartFile file) {
@@ -57,13 +57,18 @@ public class FileUploadController {
                             amazonParserService.parseAndUpdate(new ByteArrayInputStream(fileBytes));
                     return buildReceiptResponse(amazonReportService.generateReport(result), "amazon_upload_receipt.xlsx");
                 }
+                case "EBAY" -> {
+                    MarketplaceParseResult<EbaySuspense, EbayRawTransaction> result =
+                            ebayParserService.parseAndUpdate(new ByteArrayInputStream(fileBytes));
+                    return buildReceiptResponse(ebayReportService.generateReport(result), "ebay_upload_receipt.xlsx");
+                }
                 case "RITHUM" -> {
                     rithumParserService.parseAndSaveInputStream(new ByteArrayInputStream(fileBytes));
                     return ResponseEntity.ok("RITHUM: Master base data uploaded and initialized successfully.");
                 }
                 default -> {
                     return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                            .body("ERROR: Unknown file format. Could not match headers to Rithum, Walmart, or Amazon signatures.");
+                            .body("ERROR: Unknown file format. Could not match headers to Rithum, Walmart, Amazon or eBay signatures.");
                 }
             }
         } catch (Exception e) {
@@ -95,11 +100,14 @@ public class FileUploadController {
                 }
             }
 
-            if (headers.contains("transaction key") && headers.contains("partner item id")) {
+            if (headers.contains("total walmart funded savings program") && headers.contains("purchase order #")) {
                 return "WALMART";
             }
-            if (headers.contains("settlement id") && headers.contains("order id")) {
+            if (headers.contains("settlement id") && headers.contains("gift wrap credits")) {
                 return "AMAZON";
+            }
+            if (headers.contains("below standard performance fee") && headers.contains("ebay collected tax")) {
+                return "EBAY";
             }
             if (headers.contains("secondary site order id") && headers.contains("channeladvisor order id")){
                 return "RITHUM";
