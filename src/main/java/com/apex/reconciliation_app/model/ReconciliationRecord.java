@@ -20,6 +20,8 @@ public class ReconciliationRecord {
     private String orderDate;
     private String account;
     private String salesperson;
+    private String merchantReferenceNumber;
+    private String siteListingId;
 
     // Rithum Financials
     private Double totalLessTax;
