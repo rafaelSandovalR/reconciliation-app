@@ -16,7 +16,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 @RestController
@@ -50,21 +52,24 @@ public class FileUploadController {
                 case "WALMART" -> {
                     MarketplaceParseResult<WalmartSuspense, WalmartRawTransaction> result =
                             walmartParserService.parseAndUpdate(new ByteArrayInputStream(fileBytes));
-                    return buildReceiptResponse(walmartReportService.generateReport(result), "walmart_upload_receipt.xlsx");
+                    return buildReceiptResponse(walmartReportService.generateReport(result), "walmart_upload_receipt.xlsx", result.consoleLogs());
                 }
                 case "AMAZON" -> {
                     MarketplaceParseResult<AmazonSuspense, AmazonRawTransaction> result =
                             amazonParserService.parseAndUpdate(new ByteArrayInputStream(fileBytes));
-                    return buildReceiptResponse(amazonReportService.generateReport(result), "amazon_upload_receipt.xlsx");
+                    return buildReceiptResponse(amazonReportService.generateReport(result), "amazon_upload_receipt.xlsx", result.consoleLogs());
                 }
                 case "EBAY" -> {
                     MarketplaceParseResult<EbaySuspense, EbayRawTransaction> result =
                             ebayParserService.parseAndUpdate(new ByteArrayInputStream(fileBytes));
-                    return buildReceiptResponse(ebayReportService.generateReport(result), "ebay_upload_receipt.xlsx");
+                    return buildReceiptResponse(ebayReportService.generateReport(result), "ebay_upload_receipt.xlsx", result.consoleLogs());
                 }
                 case "RITHUM" -> {
-                    rithumParserService.parseAndSaveInputStream(new ByteArrayInputStream(fileBytes));
-                    return ResponseEntity.ok("RITHUM: Master base data uploaded and initialized successfully.");
+                    List<String> rithumLogs = rithumParserService.parseAndSaveInputStream(new ByteArrayInputStream(fileBytes));
+                    List<String> responseLines = new ArrayList<>();
+                    responseLines.add("Master Rithum base data uploaded and initialized successfully.");
+                    responseLines.addAll(rithumLogs);
+                    return ResponseEntity.ok(String.join("\n", responseLines));
                 }
                 default -> {
                     return ResponseEntity.status(HttpStatus.BAD_REQUEST)
@@ -81,7 +86,7 @@ public class FileUploadController {
     @GetMapping("/export")
     public ResponseEntity<InputStreamResource> downloadReport() {
 
-        return buildReceiptResponse(exportService.exportToExcel(), "reconciliation_master_report.xlsx");
+        return buildReceiptResponse(exportService.exportToExcel(), "reconciliation_master_report.xlsx", null); // TODO: Complete log tunneling
     }
 
     // Helper Methods
@@ -117,10 +122,16 @@ public class FileUploadController {
         }
     }
 
-    private ResponseEntity<InputStreamResource> buildReceiptResponse(ByteArrayInputStream stream, String filename) {
+    private ResponseEntity<InputStreamResource> buildReceiptResponse(ByteArrayInputStream stream, String filename, List<String> logs) {
         InputStreamResource resource = new InputStreamResource(stream);
         HttpHeaders headers = new HttpHeaders();
         headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename);
+
+        if (logs != null && !logs.isEmpty()) {
+            String logString = String.join("|", logs);
+            headers.add("X-Console-Logs", logString);
+            headers.add(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, "X-Console-Logs, Content-Disposition");
+        }
 
         return ResponseEntity.ok()
                 .headers(headers)

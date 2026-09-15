@@ -4,5 +4,6 @@ import java.util.List;
 
 public record MarketplaceParseResult<S, A>(
         List<S> suspenseQueue,
-        List<A> auditTrail
+        List<A> auditTrail,
+        List<String> consoleLogs
 ) {}

@@ -165,13 +165,17 @@ public class WalmartParserService {
             List<WalmartSuspense> allReceiptErrors = new ArrayList<>(actionableSuspense);
             allReceiptErrors.addAll(errorSuspense);
 
-            System.out.println("Updated " + recordsToUpdate.size() + " Rithum Master Walmart records.");
-            System.out.println("Processed " + (auditTrail.size() + allReceiptErrors.size()) + " Walmart Marketplace rows");
-            System.out.println("Saved " + auditTrail.size() + " Audit rows.");
-            System.out.println("Saved " + actionableSuspense.size() + " Actionable Suspense rows.");
-            System.out.println("Skipped " + errorSuspense.size() + " Duplicate rows (Added to receipt only)");
 
-            return new MarketplaceParseResult<>(allReceiptErrors, auditTrail);
+            List<String> logs = List.of(
+                    "Updated " + recordsToUpdate.size() + "Rithum Walmart records.",
+                    "Processed " + (auditTrail.size() + allReceiptErrors.size()) + "Walmart marketplace rows.",
+                    "Saved " + auditTrail.size() + " audit rows.",
+                    "Saved " + actionableSuspense.size() + " actionable suspense rows.",
+                    "Skipped " + errorSuspense.size() + " error rows (Added to receipt only)."
+            );
+
+
+            return new MarketplaceParseResult<>(allReceiptErrors, auditTrail, logs);
 
         } catch (Exception e) {
             throw new RuntimeException("Failed to parse Walmart Excel file: " + e.getMessage());
