@@ -19,7 +19,7 @@ public class RithumParserService {
 
     private final ReconciliationRepository repository;
 
-    public void parseAndSaveInputStream(InputStream inputStream) {
+    public List<String> parseAndSaveInputStream(InputStream inputStream) {
         try (Workbook workbook = new XSSFWorkbook(inputStream)) {
             Sheet sheet = workbook.getSheetAt(0);
 
@@ -76,7 +76,8 @@ public class RithumParserService {
 
             // Only save brand-new records
             repository.saveAll(records);
-            System.out.println("Successfully saved " + records.size() + " new Rithum records.");
+
+            return List.of("Successfully saved " + records.size() + " new Rithum records.");
 
         } catch (Exception e) {
             throw new RuntimeException("Failed to parse Rithum Excel file:" + e.getMessage());

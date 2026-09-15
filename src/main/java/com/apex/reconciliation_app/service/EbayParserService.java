@@ -44,7 +44,7 @@ public class EbayParserService {
             Map<String, String> returnToSkuMap = new HashMap<>();   // Key: ReferenceID -> SKU
 
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
-                Row row = sheet.getRow(0);
+                Row row = sheet.getRow(i);
                 if (row == null) continue;
                 EbayRawTransaction auditRow = buildAuditRow(row, headerMap);
                 String orderNumber = auditRow.getOrderNumber() != null ? auditRow.getOrderNumber().trim() : "";
@@ -81,8 +81,8 @@ public class EbayParserService {
                 String description = auditRow.getDescription() != null ? auditRow.getDescription().trim().toUpperCase() : "";
 
                 // Idempotency Check
-                String compositeTransactionId = String.format("%s-%s-%s-%s-%s-%s",
-                        type, orderNumber, transactionId, itemId, sku, description);
+                String compositeTransactionId = String.format("%s-%s-%s-%s-%s-%s-%s",
+                        type, orderNumber, transactionId, itemId, sku, referenceId, description);
                 auditRow.setCompositeTransactionId(compositeTransactionId);
 
                 if (processedLineIds.contains(compositeTransactionId)) {
@@ -155,6 +155,7 @@ public class EbayParserService {
                 }
 
                 // Invert all of these
+                double grossTransactionAmount = invert(auditRow.getGrossTransactionAmount());
                 double shippingAndHandling = invert(auditRow.getShippingAndHandling());
                 double finalValueFeeVariable = invert(auditRow.getFinalValueFeeVariable());
                 double finalValueFeeFixed = invert(auditRow.getFinalValueFeeFixed());
@@ -165,13 +166,12 @@ public class EbayParserService {
                 double charityDonation = invert(auditRow.getCharityDonation());
                 double depositProcessingFee = invert(auditRow.getDepositProcessingFee());
 
-                // Only one that's not inverted
-                double grossTransactionAmount = zeroIfNull(auditRow.getGrossTransactionAmount());
 
 
                 switch (type) {
                     case "ORDER" -> {
-                        record.setSiteOrderAmount(zeroIfNull(record.getSiteOrderAmount()) + grossTransactionAmount);
+                        // Undo the invert ONLY for siteOrderAmount
+                        record.setSiteOrderAmount(zeroIfNull(record.getSiteOrderAmount()) + grossTransactionAmount * -1);
                         record.setSiteOrderFee(zeroIfNull(record.getSiteOrderFee()) + finalValueFeeVariable);
 
                         if (shippingAndHandling != 0) record.addDynamicRegularFee(shippingAndHandling, "SHIPPING & HANDLING");
@@ -200,11 +200,11 @@ public class EbayParserService {
                     }
                     case "OTHER FEE" -> {
                         // Invert grossTransactionAmount because it wasn't originally inverted
-                        record.addDynamicRegularFee(grossTransactionAmount * -1, description);
+                        record.addDynamicRegularFee(grossTransactionAmount, description);
                     }
                     case "SHIPPING LABEL" -> {
-                        // Invert grossTransactionAmount
-                        record.setReturnShipping(zeroIfNull(record.getReturnShipping()) + grossTransactionAmount * -1);
+                        // Invert grossTransactionAmount because it wasn't originally inverted
+                        record.setReturnShipping(zeroIfNull(record.getReturnShipping()) + grossTransactionAmount);
                     }
                     default -> {
                         actionableSuspense.add(buildSuspenseRow(auditRow, "Action Required: Unmapped Transaction Type (" + type + ") found for Order."));
@@ -227,13 +227,17 @@ public class EbayParserService {
             List<EbaySuspense> allReceiptErrors = new ArrayList<>(actionableSuspense);
             allReceiptErrors.addAll(errorSuspense);
 
-            System.out.println("Updated " + recordsToUpdate.size() + " Rithum Master Ebay records.");
-            System.out.println("Processed " + (auditTrail.size() + allReceiptErrors.size()) + " Ebay Marketplace rows");
-            System.out.println("Saved " + auditTrail.size() + " Audit rows.");
-            System.out.println("Saved " + actionableSuspense.size() + " Actionable Suspense rows.");
-            System.out.println("Skipped " + errorSuspense.size() + " Duplicate rows (Added to receipt only)");
+            
+            List<String> logs = List.of(
+                "Updated " + recordsToUpdate.size() + " Rithum Master Ebay records.",
+                "Processed " + (auditTrail.size() + allReceiptErrors.size()) + " Ebay Marketplace rows",
+                "Saved " + auditTrail.size() + " Audit rows.",
+                "Saved " + actionableSuspense.size() + " Actionable Suspense rows.",
+                "Skipped " + errorSuspense.size() + " error rows (Added to receipt only)"
+            );
 
-            return new MarketplaceParseResult<>(allReceiptErrors, auditTrail);
+
+            return new MarketplaceParseResult<>(allReceiptErrors, auditTrail, logs);
 
         } catch (Exception e) {
             throw new RuntimeException("Failed to parse Ebay Excel file: " + e.getMessage());

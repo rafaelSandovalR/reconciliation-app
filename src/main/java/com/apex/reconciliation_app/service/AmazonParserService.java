@@ -202,13 +202,16 @@ public class AmazonParserService {
             List<AmazonSuspense> allReceiptErrors = new ArrayList<>(actionableSuspense);
             allReceiptErrors.addAll(errorSuspense);
 
-            System.out.println("Updated " + recordsToUpdate.size() + " Rithum Master Amazon records.");
-            System.out.println("Processed " + (auditTrail.size() + allReceiptErrors.size()) + " Amazon Marketplace rows");
-            System.out.println("Saved " + auditTrail.size() + " Audit rows.");
-            System.out.println("Saved " + actionableSuspense.size() + " Actionable Suspense rows.");
-            System.out.println("Skipped " + errorSuspense.size() + " Duplicate rows (Added to receipt only)");
+            List<String> logs = List.of(
+                "Updated " + recordsToUpdate.size() + " Rithum Amazon records.",
+                "Processed " + (auditTrail.size() + allReceiptErrors.size()) + " Amazon marketplace rows",
+                "Saved " + auditTrail.size() + " audit rows.",
+                "Saved " + actionableSuspense.size() + " actionable suspense rows.",
+                "Skipped " + errorSuspense.size() + " error rows (Added to receipt only)"
+            );
 
-            return new MarketplaceParseResult<>(allReceiptErrors, auditTrail);
+
+            return new MarketplaceParseResult<>(allReceiptErrors, auditTrail, logs);
 
         } catch (Exception e) {
             throw new RuntimeException("Failed to parse Amazon Excel file: " + e.getMessage());
