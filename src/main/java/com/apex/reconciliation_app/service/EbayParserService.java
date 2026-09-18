@@ -156,7 +156,6 @@ public class EbayParserService {
 
                 // Invert all of these
                 double grossTransactionAmount = invert(auditRow.getGrossTransactionAmount());
-                double shippingAndHandling = invert(auditRow.getShippingAndHandling());
                 double finalValueFeeVariable = invert(auditRow.getFinalValueFeeVariable());
                 double finalValueFeeFixed = invert(auditRow.getFinalValueFeeFixed());
                 double regulatoryOperatingFee = invert(auditRow.getRegulatoryOperatingFee());
@@ -174,7 +173,6 @@ public class EbayParserService {
                         record.setSiteOrderAmount(zeroIfNull(record.getSiteOrderAmount()) + grossTransactionAmount * -1);
                         record.setSiteOrderFee(zeroIfNull(record.getSiteOrderFee()) + finalValueFeeVariable);
 
-                        if (shippingAndHandling != 0) record.addDynamicRegularFee(shippingAndHandling, "SHIPPING & HANDLING");
                         if (finalValueFeeFixed != 0) record.addDynamicRegularFee(finalValueFeeFixed, "FINAL VALUE FEE FIXED");
                         if (regulatoryOperatingFee != 0) record.addDynamicRegularFee(regulatoryOperatingFee, "REGULATORY OPERATING FEE");
                         if (veryHighItemNotAsDescribedFee != 0) record.addDynamicRegularFee(veryHighItemNotAsDescribedFee, "VERY HIGH \"ITEM NOT AS DESCRIBED\" FEE");
@@ -189,7 +187,6 @@ public class EbayParserService {
                         record.setAmountRefunded(zeroIfNull(record.getAmountRefunded()) + grossTransactionAmount);
                         record.setCommissionRefund(zeroIfNull(record.getCommissionRefund()) + finalValueFeeVariable);
 
-                        if (shippingAndHandling != 0) record.addDynamicReturnFee(shippingAndHandling, "SHIPPING & HANDLING");
                         if (finalValueFeeFixed != 0) record.addDynamicReturnFee(finalValueFeeFixed, "FINAL VALUE FEE FIXED");
                         if (regulatoryOperatingFee != 0) record.addDynamicReturnFee(regulatoryOperatingFee, "REGULATORY OPERATING FEE");
                         if (veryHighItemNotAsDescribedFee != 0) record.addDynamicReturnFee(veryHighItemNotAsDescribedFee, "VERY HIGH \"ITEM NOT AS DESCRIBED\" FEE");

@@ -203,11 +203,11 @@ public class AmazonParserService {
             allReceiptErrors.addAll(errorSuspense);
 
             List<String> logs = List.of(
-                "Updated " + recordsToUpdate.size() + " Rithum Amazon records.",
-                "Processed " + (auditTrail.size() + allReceiptErrors.size()) + " Amazon marketplace rows",
-                "Saved " + auditTrail.size() + " audit rows.",
-                "Saved " + actionableSuspense.size() + " actionable suspense rows.",
-                "Skipped " + errorSuspense.size() + " error rows (Added to receipt only)"
+                    "Updated " + recordsToUpdate.size() + " Rithum Amazon records.",
+                    "Processed " + (auditTrail.size() + allReceiptErrors.size()) + " Amazon marketplace rows",
+                    "Saved " + auditTrail.size() + " audit rows.",
+                    "Saved " + actionableSuspense.size() + " actionable suspense rows.",
+                    "Skipped " + errorSuspense.size() + " error rows (Added to receipt only)"
             );
 
 
