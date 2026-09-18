@@ -174,6 +174,7 @@
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
 
     </style>
+    <script src="/js/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -242,13 +243,13 @@
         dropzone.classList.remove('dragover');
         if (e.dataTransfer.files.length) {
             fileInput.files = e.dataTransfer.files;
-            processFile(fileInput.files[0]);
+            handleFilePreCheck(fileInput.files[0]);
         }
     });
 
     fileInput.addEventListener('change', function() {
         if (this.files.length) {
-            processFile(this.files[0]);
+            handleFilePreCheck(this.files[0]);
         }
     });
 
@@ -371,6 +372,50 @@
 
     function resetIndicators() {
         document.querySelectorAll('.indicator').forEach(el => el.classList.remove('active'));
+    }
+
+    function handleFilePreCheck(file) {
+        logToConsole(`Analyzing file signatures: ${file.name}...`);
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = new Uint8Array(e.target.result);
+                // Only read header row
+                const workbook = XLSX.read(data, {type: 'array', sheetRows: 1});
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+
+                const rawHeaders = XLSX.utils.sheet_to_json(firstSheet, {header: 1})[0] || [];
+                const headers = rawHeaders.map(h => String(h).toLowerCase().trim());
+
+                let detectedType = "UNKNOWN";
+
+                if (headers.includes("total walmart funded savings program") && headers.includes("purchase order #")) {
+                    detectedType = "walmart";
+                } else if (headers.includes("settlement id") && headers.includes("gift wrap credits")) {
+                    detectedType = "amazon";
+                } else if (headers.includes("below standard performance fee") && headers.includes("ebay collected tax")) {
+                    detectedType = "ebay";
+                } else if (headers.includes("secondary site order id") && headers.includes("channeladvisor order id")) {
+                    detectedType = "rithum";
+                } else if (headers.includes("related id") && headers.includes("retail price")) {
+                    detectedType = "temu";
+                }
+
+                if (detectedType !== "UNKNOWN") {
+                    lightUpIndicator(detectedType);
+                    logToConsole(`Signature Matched: [ ${detectedType.toUpperCase()} ]`, 'success');
+                    processFile(file);
+                } else {
+                    logToConsole("ERR: Unknown file format signature.", "error");
+                    fileInput.value = ''; // Reset input
+                }
+            } catch (error) {
+                logToConsole("ERR: Failed to parse Excel headers locally.", "error");
+                fileInput.value = '';
+            }
+        };
+        // Read file as ArrayBuffer for SheetJS
+        reader.readAsArrayBuffer(file);
     }
 </script>
 </body>
