@@ -101,6 +101,7 @@
             margin-bottom: 20px;
             display: flex;
             flex-direction: column;
+            align-items: center;
             gap: 20px;
             font-size: 1.25rem;
             font-weight: bolder;
@@ -186,7 +187,7 @@
             <div class="dropzone" id="dropzone">
                 <input type="file" id="universalFile" accept=".xlsx" />
                 <p>DRAG & DROP LEDGER FILE HERE</p>
-                <p style="color: var(--term-dim); margin-top: 5px; font-size: 0.75rem;">
+                <p style="color: var(--term-dim);">
                     [ AUTO-DETECT ]
                 </p>
             </div>
@@ -198,6 +199,7 @@
         <div class="indicator" id="ind-walmart">WALMART</div>
         <div class="indicator" id="ind-amazon">AMAZON</div>
         <div class="indicator" id="ind-ebay">EBAY</div>
+        <div class="indicator" id="ind-temu">TEMU</div>
     </div>
 
     <div>
@@ -257,6 +259,10 @@
     async function processFile(file) {
         logToConsole(`Initiating upload: ${file.name}`);
 
+        // Disable dropzone to prevent overlapping uploads
+        dropzone.style.pointerEvents = 'none';
+        dropzone.style.opacity = '0.5';
+
         const formData = new FormData();
         formData.append('file', file);
 
@@ -278,19 +284,10 @@
                         const lines = logHeader.split('|');
                         lines.forEach(line => logToConsole(line, 'success'));
                     }
-                    logToConsole(`Processing complete (with suspense items). Receipt downloaded.`, 'success');
-
-                    // Parse filename to light up indicator
-                    const disposition = response.headers.get('Content-Disposition');
-                    if (disposition) {
-                        if (disposition.includes('walmart')) lightUpIndicator('walmart');
-                        if (disposition.includes('amazon')) lightUpIndicator('amazon');
-                        if (disposition.includes('ebay')) lightUpIndicator('ebay');
-                    }
+                    logToConsole(`Processing complete. Receipt downloaded.`, 'success');
                 } else {
                     // SCENARIO A: Text Success (e.g., Rithum)
                     const resultText = await response.text();
-                    if (resultText.includes('RITHUM')) lightUpIndicator('rithum');
 
                     // Split the backend print statements by newline to make it look like a real terminal
                     const lines = resultText.split('\n').filter(line => line.trim() !== '');
@@ -302,10 +299,12 @@
             }
         } catch (error) {
             logToConsole(`CRITICAL FAILURE: NETWORK DISCONNECT`, 'error');
+        } finally {
+            // Re-enable dropzone regardless of success or failure
+            dropzone.style.pointerEvents = 'auto';
+            dropzone.style.opacity = '1';
+            fileInput.value = '';
         }
-
-        // Reset file input so you can upload the same file again if needed
-        fileInput.value = '';
     }
 
     // --- CORE LOGIC: DOWNLOAD MASTER ---
