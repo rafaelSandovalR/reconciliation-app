@@ -17,6 +17,7 @@ public class ReconciliationRecord {
     private String siteName;
     private String sku;
     private String siteOrderId;
+    private String siteOrderItemId;
     private String orderDate;
     private String account;
     private String salesperson;

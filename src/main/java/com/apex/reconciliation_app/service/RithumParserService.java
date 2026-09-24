@@ -50,19 +50,24 @@ public class RithumParserService {
                     column.applyTo(record, cell);
                 }
 
+                String siteName = record.getSiteName();
+                String sku = record.getSku();
+
                 boolean isSiteOrderBlank = record.getSiteOrderId() == null || record.getSiteOrderId().isEmpty();
                 boolean isMerchantRefBlank = record.getMerchantReferenceNumber() == null || record.getMerchantReferenceNumber().isEmpty();
-                boolean isSkuBlank = record.getSku() == null || record.getSku().isEmpty();
+                boolean isSkuBlank = sku == null || sku.isEmpty();
 
                 // Skip if BOTH order identifiers are missing, OR if the SKU is missing
                 if ((isSiteOrderBlank && isMerchantRefBlank) || isSkuBlank) {
                     continue;
                 }
 
-                String orderId = (record.getSiteName() != null && record.getSiteName().contains("eBay"))
-                        ? record.getMerchantReferenceNumber()
-                        : record.getSiteOrderId();
-                String compositeId = orderId + "-" + record.getSku();
+                String orderId = (siteName != null && siteName.contains("eBay")) ?
+                        record.getMerchantReferenceNumber() :
+                        record.getSiteOrderId();
+                String compositeId = (siteName != null && siteName.contains("Temu")) ?
+                        orderId + "-" + record.getSiteOrderItemId() :
+                        orderId + "-" + sku;
                 record.setCompositeId(compositeId);
 
                 // IDEMPOTENCY CHECK

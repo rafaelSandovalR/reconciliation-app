@@ -14,6 +14,7 @@ public enum RithumColumn implements ExcelColumn{
     ORDER_DATE("Order Date", (record, cell) -> record.setOrderDate(ExcelUtils.getStringValue(cell))),
     ACCOUNT("Account", (record, cell) -> record.setAccount(ExcelUtils.getStringValue(cell))),
     SITE_ORDER_ID("Site Order ID", (record, cell) -> record.setSiteOrderId(ExcelUtils.getStringValue(cell))),
+    SITE_ORDER_ITEM_ID("Site Order Item ID", (record, cell) -> record.setSiteOrderItemId(ExcelUtils.getStringValue(cell))),
     SALESPERSON("Salesperson", (record, cell) -> record.setSalesperson(ExcelUtils.getStringValue(cell))),
     MERCHANT_REFERENCE_NUMBER("Merchant Reference Number", (record, cell) -> record.setMerchantReferenceNumber(ExcelUtils.getStringValue(cell))),
     SITE_LISTING_ID("Site Listing ID", (record, cell) -> record.setSiteListingId((ExcelUtils.getStringValue(cell)))),
