@@ -3,6 +3,8 @@ package com.apex.reconciliation_app.service;
 import com.apex.reconciliation_app.dto.MarketplaceParseResult;
 import com.apex.reconciliation_app.enums.AmazonColumn;
 import com.apex.reconciliation_app.model.*;
+import com.apex.reconciliation_app.model.amazon.AmazonRawTransaction;
+import com.apex.reconciliation_app.model.amazon.AmazonSuspense;
 import com.apex.reconciliation_app.repository.AmazonRawTransactionRepository;
 import com.apex.reconciliation_app.repository.AmazonSuspenseRepository;
 import com.apex.reconciliation_app.repository.ReconciliationRepository;

@@ -1,6 +1,6 @@
 package com.apex.reconciliation_app.repository;
 
-import com.apex.reconciliation_app.model.TemuRawTransaction;
+import com.apex.reconciliation_app.model.temu.TemuRawTransaction;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

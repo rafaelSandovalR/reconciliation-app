@@ -1,4 +1,5 @@
-package com.apex.reconciliation_app.model;
+package com.apex.reconciliation_app.model.walmart;
+
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -9,22 +10,23 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "walmart_suspense_queue")
+@Table(name = "walmart_raw_transactions")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class WalmartSuspense {
+public class WalmartRawTransaction {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String errorReason;
-
     // Automatically records when row was ingested
     @Builder.Default
     private LocalDateTime importTimeStamp = LocalDateTime.now();
+
+    @Column(unique = true)
+    private String compositeTransactionId;
 
     // IDENTIFIERS
     private String transactionKey;

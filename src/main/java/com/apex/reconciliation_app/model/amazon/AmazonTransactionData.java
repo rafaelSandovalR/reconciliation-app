@@ -1,4 +1,4 @@
-package com.apex.reconciliation_app.model;
+package com.apex.reconciliation_app.model.amazon;
 
 import java.time.LocalDateTime;
 

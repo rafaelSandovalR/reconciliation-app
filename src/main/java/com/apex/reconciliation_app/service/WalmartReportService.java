@@ -2,8 +2,8 @@ package com.apex.reconciliation_app.service;
 
 import com.apex.reconciliation_app.dto.MarketplaceParseResult;
 import com.apex.reconciliation_app.enums.WalmartColumn;
-import com.apex.reconciliation_app.model.WalmartRawTransaction;
-import com.apex.reconciliation_app.model.WalmartSuspense;
+import com.apex.reconciliation_app.model.walmart.WalmartRawTransaction;
+import com.apex.reconciliation_app.model.walmart.WalmartSuspense;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;

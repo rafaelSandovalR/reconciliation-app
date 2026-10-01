@@ -61,7 +61,6 @@ public class RithumParserService {
                 if ((isSiteOrderBlank && isMerchantRefBlank) || isSkuBlank) {
                     continue;
                 }
-
                 String orderId = (siteName != null && siteName.contains("eBay")) ?
                         record.getMerchantReferenceNumber() :
                         record.getSiteOrderId();

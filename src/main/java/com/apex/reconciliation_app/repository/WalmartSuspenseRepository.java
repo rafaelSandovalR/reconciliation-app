@@ -1,6 +1,6 @@
 package com.apex.reconciliation_app.repository;
 
-import com.apex.reconciliation_app.model.WalmartSuspense;
+import com.apex.reconciliation_app.model.walmart.WalmartSuspense;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

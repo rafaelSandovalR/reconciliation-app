@@ -1,4 +1,4 @@
-package com.apex.reconciliation_app.model;
+package com.apex.reconciliation_app.model.ebay;
 
 import java.time.LocalDateTime;
 

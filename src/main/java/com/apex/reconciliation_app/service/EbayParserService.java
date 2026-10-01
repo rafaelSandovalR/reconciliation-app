@@ -2,8 +2,8 @@ package com.apex.reconciliation_app.service;
 
 import com.apex.reconciliation_app.dto.MarketplaceParseResult;
 import com.apex.reconciliation_app.enums.EbayColumn;
-import com.apex.reconciliation_app.model.EbayRawTransaction;
-import com.apex.reconciliation_app.model.EbaySuspense;
+import com.apex.reconciliation_app.model.ebay.EbayRawTransaction;
+import com.apex.reconciliation_app.model.ebay.EbaySuspense;
 import com.apex.reconciliation_app.model.ReconciliationRecord;
 import com.apex.reconciliation_app.repository.EbayRawTransactionRepository;
 import com.apex.reconciliation_app.repository.EbaySuspenseRepository;
@@ -39,7 +39,7 @@ public class EbayParserService {
             Set<String> processedLineIds = new HashSet<>();
 
             // PASS 1: Ingestion & Map Building
-            List<EbayRawTransaction> parsedRows = new ArrayList<>();
+            List<EbayRawTransaction> validRows = new ArrayList<>();
             Map<String, String> itemToSkuMap = new HashMap<>();     // Key: OrderNumber-ItemID -> Anchored SKU
             Map<String, String> returnToSkuMap = new HashMap<>();   // Key: ReferenceID -> SKU
 
@@ -53,7 +53,7 @@ public class EbayParserService {
                     continue;
                 }
 
-                parsedRows.add(auditRow);
+                validRows.add(auditRow);
 
                 String type = auditRow.getType() != null ? auditRow.getType().trim().toUpperCase() : "";
                 String sku = auditRow.getCustomLabel() != null ? auditRow.getCustomLabel().trim() : "";
@@ -71,7 +71,7 @@ public class EbayParserService {
             }
 
             // PASS 2: Routing & Math
-            for (EbayRawTransaction auditRow : parsedRows) {
+            for (EbayRawTransaction auditRow : validRows) {
                 String orderNumber = auditRow.getOrderNumber() != null ? auditRow.getOrderNumber().trim() : "";
                 String sku = auditRow.getCustomLabel() != null ? auditRow.getCustomLabel().trim() : "";
                 String transactionId = auditRow.getTransactionId() != null ? auditRow.getTransactionId().trim() : "";

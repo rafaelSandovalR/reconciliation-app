@@ -4,8 +4,8 @@ import com.apex.reconciliation_app.dto.MarketplaceParseResult;
 import com.apex.reconciliation_app.enums.WalmartColumn;
 import com.apex.reconciliation_app.exception.BucketOverflowException;
 import com.apex.reconciliation_app.model.ReconciliationRecord;
-import com.apex.reconciliation_app.model.WalmartRawTransaction;
-import com.apex.reconciliation_app.model.WalmartSuspense;
+import com.apex.reconciliation_app.model.walmart.WalmartRawTransaction;
+import com.apex.reconciliation_app.model.walmart.WalmartSuspense;
 import com.apex.reconciliation_app.repository.ReconciliationRepository;
 import com.apex.reconciliation_app.repository.WalmartRawTransactionRepository;
 import com.apex.reconciliation_app.repository.WalmartSuspenseRepository;
@@ -61,7 +61,7 @@ public class WalmartParserService {
                 String sku = auditRow.getPartnerItemId() != null ? auditRow.getPartnerItemId().trim() : "";
                 String transactionKey = auditRow.getTransactionKey() != null ? auditRow.getTransactionKey().trim() : "";
                 if (purchaseOrder.isEmpty() || sku.isEmpty()) {
-                    errorSuspense.add(buildSuspenseRow(auditRow, "Skipped: Missing Purchase Order or SKU (Non-order line item)"));
+                    errorSuspense.add(buildSuspenseRow(auditRow, "Missing Purchase Order or SKU (Non-order line item)"));
                     continue;
                 }
                 String compositeId = purchaseOrder + "-" + sku;

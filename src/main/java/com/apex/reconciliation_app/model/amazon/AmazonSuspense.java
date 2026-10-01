@@ -1,4 +1,4 @@
-package com.apex.reconciliation_app.model;
+package com.apex.reconciliation_app.model.amazon;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -9,21 +9,21 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "amazon_raw_transactions")
+@Table(name="amazon_suspense_queue")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class AmazonRawTransaction implements AmazonTransactionData{
+public class AmazonSuspense implements AmazonTransactionData{
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    private String errorReason;
+
     @Builder.Default
     private LocalDateTime importTimeStamp = LocalDateTime.now();
-
-    @Column(unique = true)
-    private String compositeTransactionId;
 
     // IDENTIFIERS
     private String settlementId;
