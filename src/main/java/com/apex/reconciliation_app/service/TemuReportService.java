@@ -1,9 +1,9 @@
 package com.apex.reconciliation_app.service;
 
 import com.apex.reconciliation_app.enums.TemuColumn;
-import com.apex.reconciliation_app.model.TemuRawTransaction;
-import com.apex.reconciliation_app.model.TemuSuspense;
-import com.apex.reconciliation_app.model.TemuTransactionData;
+import com.apex.reconciliation_app.model.temu.TemuRawTransaction;
+import com.apex.reconciliation_app.model.temu.TemuSuspense;
+import com.apex.reconciliation_app.model.temu.TemuTransactionData;
 import org.apache.poi.ss.usermodel.Row;
 import org.springframework.stereotype.Service;
 
@@ -15,6 +15,9 @@ public class TemuReportService extends AbstractReportService<TemuSuspense, TemuR
 
     @Override
     protected String getSuspenseErrorReason(TemuSuspense suspenseRecord) { return suspenseRecord.getErrorReason(); }
+
+    @Override
+    protected String getCompositeId(TemuSuspense suspenseRecord) { return suspenseRecord.getCompositeId(); }
 
     @Override
     protected void writeSuspenseData(Row row, TemuSuspense record, int startingColIdx) {

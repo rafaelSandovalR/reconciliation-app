@@ -1,4 +1,4 @@
-package com.apex.reconciliation_app.model;
+package com.apex.reconciliation_app.model.temu;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -9,22 +9,26 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "temu_raw_transactions")
+@Table(name="temu_suspense_queue")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class TemuRawTransaction implements TemuTransactionData{
+public class TemuSuspense implements TemuTransactionData{
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    private String errorReason;
+
     @Builder.Default
     private LocalDateTime importTimeStamp = LocalDateTime.now();
 
     @Column(unique = true)
-    private String compositeTransactionId;
+    private String compositeTransactionId; // TODO: Apply to other suspense entities
+
+    private String compositeId;
 
     // IDENTIFIERS
     private String sku;
@@ -62,5 +66,4 @@ public class TemuRawTransaction implements TemuTransactionData{
     private Double marketplaceWithheldTax;
     private Double others;
     private Double total;
-
 }

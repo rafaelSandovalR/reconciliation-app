@@ -16,6 +16,7 @@ public abstract class AbstractReportService<S, A, E extends Enum<E> & ExcelColum
 
     protected abstract Class<E> getColumnEnumClass();
     protected abstract String getSuspenseErrorReason(S suspenseRecord);
+    protected abstract String getCompositeId(S suspenseRecord);
     protected abstract void writeSuspenseData(Row row, S record, int startingColIdx);
     protected abstract void writeAuditData(Row row, A record, int startingColIdx);
 
@@ -44,6 +45,10 @@ public abstract class AbstractReportService<S, A, E extends Enum<E> & ExcelColum
         errorHeader.setCellValue("Error Reason");
         errorHeader.setCellStyle(headerStyle);
 
+        Cell compositeId = headerRow.createCell(colIdx++);
+        compositeId.setCellValue("Composite ID");
+        compositeId.setCellStyle(headerStyle);
+
         for (E col : getColumnEnumClass().getEnumConstants()) {
             Cell cell = headerRow.createCell(colIdx++);
             cell.setCellValue(col.getHeaderName());
@@ -54,7 +59,8 @@ public abstract class AbstractReportService<S, A, E extends Enum<E> & ExcelColum
         for (S record : data) {
             Row row = sheet.createRow(rowIdx++);
             setCellValue(row.createCell(0), getSuspenseErrorReason(record));
-            writeSuspenseData(row, record, 1); // Shifted by 1 for Error Reason
+            setCellValue(row.createCell(1), getCompositeId(record));
+            writeSuspenseData(row, record, 2); // Shifted by 1 for Error Reason (2 for compositeId)
         }
 
         for (int i = 0; i < 10; i++) sheet.autoSizeColumn(i);
