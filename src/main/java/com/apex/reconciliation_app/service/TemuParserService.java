@@ -162,6 +162,7 @@ public class TemuParserService {
                 double sellerDiscount = invert(row.getSellerDiscount());
                 double serviceFee = invert(row.getServiceFee());
                 double platformIncentive = invert(row.getPlatformIncentive());
+                double subtotal = invert(row.getSubtotal());
                 double shipping = invert(row.getShipping());
                 double platformIncentiveShipping = invert(row.getPlatformIncentiveShipping());
                 double signOnDelivery = invert(row.getSignOnDelivery());
@@ -181,9 +182,15 @@ public class TemuParserService {
                         if (others != 0) record.addDynamicRegularFee(others, "OTHERS");
                     }
                     case "REFUND" -> {
-                        if (zeroIfNull(row.getQuantity()) > 0) record.setReturnStatus("Yes");
-                        record.setAmountRefunded(zeroIfNull(record.getAmountRefunded()) + (retailPrice * -1));
-                        record.setCommissionRefund(zeroIfNull(record.getCommissionRefund()) + serviceFee);
+                        if (subtotal != 0) {
+                            if (zeroIfNull(row.getQuantity()) > 0) {
+                                record.setReturnStatus("Yes");
+                                record.setAmountRefunded(zeroIfNull(record.getAmountRefunded()) + (retailPrice * -1));
+                                record.setCommissionRefund(zeroIfNull(record.getCommissionRefund()) + serviceFee);
+                            } else {
+                                record.setAmountRefunded(zeroIfNull(record.getAmountRefunded()) + subtotal);
+                            }
+                        }
 
                         if (platformDiscount != 0) record.addDynamicReturnFee(platformDiscount, "PLATFORM DISCOUNT");
                         if (sellerDiscount != 0) record.addDynamicReturnFee(sellerDiscount, "SELLER DISCOUNT");
@@ -261,11 +268,13 @@ public class TemuParserService {
                         case "SHIPPING LABEL PURCHASE" -> {
                             record.setActualShippingCosts(zeroIfNull(record.getActualShippingCosts()) + splitAmount);
                         }
+                        case "SHIPPING LABEL PURCHASE ADJUSTMENT" -> {
+                            record.setShippingAdjustments(zeroIfNull(record.getShippingAdjustments()) + splitAmount);
+                        }
                         case "SHIPPING LABEL FOR RETURN PURCHASE" -> {
                             record.setReturnShipping(zeroIfNull(record.getReturnShipping()) + splitAmount);
                         }
                         default ->  {
-                            // TODO: ROUTE SHIPPING LABEL ADJUSTMENT FEES TO SHIPPINGADJUSTMENT COLUMN
                             if (isReturnFee) record.addDynamicReturnFee(splitAmount, type);
                             else record.addDynamicRegularFee(splitAmount, type);
                         }
