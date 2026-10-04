@@ -3,8 +3,8 @@ package com.apex.reconciliation_app.service;
 import com.apex.reconciliation_app.dto.MarketplaceParseResult;
 import com.apex.reconciliation_app.enums.TemuColumn;
 import com.apex.reconciliation_app.model.ReconciliationRecord;
-import com.apex.reconciliation_app.model.TemuRawTransaction;
-import com.apex.reconciliation_app.model.TemuSuspense;
+import com.apex.reconciliation_app.model.temu.TemuRawTransaction;
+import com.apex.reconciliation_app.model.temu.TemuSuspense;
 import com.apex.reconciliation_app.repository.ReconciliationRepository;
 import com.apex.reconciliation_app.repository.TemuRawTransactionRepository;
 import com.apex.reconciliation_app.repository.TemuSuspenseRepository;
@@ -30,12 +30,17 @@ public class TemuParserService {
     private final TemuRawTransactionRepository auditRepository;
     private final TemuSuspenseRepository suspenseRepository;
 
+    private static final java.time.format.DateTimeFormatter TEMU_DATE_FORMATTER =
+            java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
     public MarketplaceParseResult<TemuSuspense, TemuRawTransaction> parseAndUpdate(InputStream inputStream) {
         try (Workbook workbook = new XSSFWorkbook(inputStream)) {
             Sheet sheet = workbook.getSheetAt(0);
             Map<TemuColumn, Integer> headerMap = ExcelUtils.buildHeaderMap(sheet.getRow(0), TemuColumn.class);
 
             Map<String, ReconciliationRecord> recordsToUpdate = new HashMap<>();
+            List<ReconciliationRecord> recordsToDelete = new ArrayList<>();
+            Map<String, String> idTranslationMap = new HashMap<>();
             List<TemuRawTransaction> auditTrail = new ArrayList<>();
             List<TemuSuspense> actionableSuspense = new ArrayList<>();
             List<TemuSuspense> errorSuspense = new ArrayList<>();
@@ -43,7 +48,8 @@ public class TemuParserService {
 
             List<TemuRawTransaction> itemLevelRows = new ArrayList<>();
             List<TemuRawTransaction> orderLevelRows = new ArrayList<>();
-            Map<String, List<String>> orderToSkuMap = new HashMap<>();
+            Map<String, List<String>> orderToItemIdMap = new HashMap<>();
+            Map<String, List<String>> orderToReturnItemIdMap = new HashMap<>();
 
             // Pass 1: Read all rows, build anchors, build order-level and item-level lists
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
@@ -72,18 +78,24 @@ public class TemuParserService {
                     continue;
                 }
                 auditRow.setCompositeTransactionId(compositeTransactionId);
-                if (auditRow.getSku() == null || auditRow.getSku().trim().isEmpty()) {
+                String itemId = auditRow.getOrderItemId() != null ? auditRow.getOrderItemId().trim() : "";
+
+                if (itemId.isEmpty()) {
                     orderLevelRows.add(auditRow);
+                    continue;
                 } else {
                     itemLevelRows.add(auditRow);
+                    auditRow.setCompositeId(orderId + "-" + itemId);
                 }
 
-                if ("ORDER PAYMENT".equals(type)) {
-                    orderToSkuMap.computeIfAbsent(auditRow.getOrderId(), k -> new ArrayList<>()).add(auditRow.getSku());
+                switch (type) {
+                    case "ORDER PAYMENT" -> orderToItemIdMap.computeIfAbsent(orderId, k -> new ArrayList<>()).add(itemId);
+                    case "REFUND" -> orderToReturnItemIdMap.computeIfAbsent(orderId, k -> new ArrayList<>()).add(itemId);
                 }
             }
 
             // Pass 2: Item-level processing
+            // TODO: Can pass 2 and pass one be merged?
             for (TemuRawTransaction row : itemLevelRows) {
                 String type = row.getTransactionType() != null ? row.getTransactionType().trim().toUpperCase() : "";
                 if (!"ORDER PAYMENT".equals(type) && !"REFUND".equals(type)) {
@@ -91,18 +103,59 @@ public class TemuParserService {
                     continue;
                 }
 
-                String compositeId = row.getOrderId() + "-" + row.getSku();
+                String orderId = row.getOrderId() != null ? row.getOrderId().trim() : "";
+                String itemId = row.getOrderItemId() != null ? row.getOrderItemId().trim() : "";
+                String temuTitle = row.getSku() != null ? row.getSku().trim() : "";
+                String compositeId = row.getCompositeId();
                 ReconciliationRecord record = recordsToUpdate.get(compositeId);
+
                 if (record == null) {
                     Optional<ReconciliationRecord> dbRecord = repository.findById(compositeId);
                     if (dbRecord.isPresent()) {
                         record = dbRecord.get();
-                        recordsToUpdate.put(compositeId, record);
                     } else {
-                        actionableSuspense.add(buildSuspenseRow(row, "Missing from Rithum base data"));
-                        continue;
+                        List<ReconciliationRecord> baseRecords = repository.findBySiteOrderId(orderId);
+
+                        if (baseRecords.isEmpty()) {
+                            actionableSuspense.add(buildSuspenseRow(row, "Missing from Rithum base data"));
+                            continue;
+                        } else if (baseRecords.size() == 1) {
+                            // Fallback 1: Single item order -> Auto-heal
+                            record = baseRecords.get(0);
+                        } else {
+                            // Fallback 2: Multi-item order -> Fuzzy title match
+                            List<ReconciliationRecord> matches = new ArrayList<>();
+                            for (ReconciliationRecord br : baseRecords) {
+                                if (br.getTitle() != null && br.getTitle().contains(temuTitle)) {
+                                    matches.add(br);
+                                }
+                            }
+
+                            if (matches.size() == 1) {
+                                record = matches.get(0);
+                            } else {
+                                actionableSuspense.add(buildSuspenseRow(row, "Ambiguous match: Rithum data missing Item IDs, and title match failed."));
+                                continue;
+                            }
+                        }
+                        // Auto-heal rithum record
+                        String oldCompositeId = record.getCompositeId();
+
+                        ReconciliationRecord healedRecord = new ReconciliationRecord();
+                        BeanUtils.copyProperties(record, healedRecord);
+
+                        healedRecord.setSiteOrderItemId(itemId);
+                        healedRecord.setCompositeId(compositeId);
+
+                        idTranslationMap.put(oldCompositeId, compositeId);
+
+                        recordsToDelete.add(record);
+                        record = healedRecord;
                     }
                 }
+
+                // Enforce Cache Integrity
+                recordsToUpdate.put(record.getCompositeId(), record);
 
                 double retailPrice = zeroIfNull(row.getRetailPrice());
                 double platformDiscount = invert(row.getPlatformDiscount());
@@ -128,9 +181,9 @@ public class TemuParserService {
                         if (others != 0) record.addDynamicRegularFee(others, "OTHERS");
                     }
                     case "REFUND" -> {
-                        record.setReturnStatus("Yes");
+                        if (zeroIfNull(row.getQuantity()) > 0) record.setReturnStatus("Yes");
                         record.setAmountRefunded(zeroIfNull(record.getAmountRefunded()) + (retailPrice * -1));
-                        record.setCommissionRefund(zeroIfNull(record.getCommissionRefund()) + (serviceFee * -1));
+                        record.setCommissionRefund(zeroIfNull(record.getCommissionRefund()) + serviceFee);
 
                         if (platformDiscount != 0) record.addDynamicReturnFee(platformDiscount, "PLATFORM DISCOUNT");
                         if (sellerDiscount != 0) record.addDynamicReturnFee(sellerDiscount, "SELLER DISCOUNT");
@@ -141,49 +194,85 @@ public class TemuParserService {
                         if (others != 0) record.addDynamicReturnFee(others, "OTHERS");
                     }
                 }
+
+                auditTrail.add(row);
             }
 
             // Pass 3: Order-level fee distribution
             for (TemuRawTransaction row : orderLevelRows) {
-                List<String> skus = orderToSkuMap.get(row.getOrderId());
-                if (skus == null || skus.isEmpty()) {
-                    actionableSuspense.add(buildSuspenseRow(row, "Unanchored order-level fee (No associated Order Payment found)"));
-                    continue;
-                }
-
                 String type = row.getTransactionType() != null ? row.getTransactionType().trim().toUpperCase() : "";
-                double others = invert(row.getOthers());
-                double splitAmount = others / skus.size();
+                String orderId = row.getOrderId() != null ? row.getOrderId().trim() : "";
+                boolean isReturnFee = type.contains("RETURN");
 
-                for (String sku : skus) {
-                    String compositeId = row.getOrderId() + "-" + sku;
-                    ReconciliationRecord record = recordsToUpdate.get(compositeId);
-                    if (record == null) {
-                        Optional<ReconciliationRecord> dbRecord = repository.findById(compositeId);
-                        if (dbRecord.isPresent()) {
-                            record = dbRecord.get();
-                            recordsToUpdate.put(compositeId, record);
-                            switch (type) {
-                                case "SHIPPING LABEL PURCHASE" -> {
-                                    record.setActualShippingCosts(zeroIfNull(record.getActualShippingCosts()) + splitAmount);
-                                }
-                                case "SHIPPING LABEL FOR RETURN PURCHASE" -> {
-                                    record.setReturnShipping(zeroIfNull(record.getReturnShipping()) + splitAmount);
-                                }
-                                default ->  {
-                                    if (type.contains("RETURN")) {
-                                        record.addDynamicReturnFee(splitAmount, type);
-                                    } else {
-                                        record.addDynamicRegularFee(splitAmount, type);
-                                    }
-                                }
+                List<ReconciliationRecord> validRecordsToUpdate = new ArrayList<>();
+
+                if (!isReturnFee) {
+                    // Standard shipping: Distribute across all items in the order, ignoring the missing item ids
+                    List<ReconciliationRecord> baseRecords = repository.findBySiteOrderId(orderId);
+                    if (baseRecords != null && !baseRecords.isEmpty()) {
+                        for (ReconciliationRecord br : baseRecords) {
+                            // Check if DB record was healed in pass 2
+                            String activeId = idTranslationMap.getOrDefault(br.getCompositeId(), br.getCompositeId());
+                            validRecordsToUpdate.add(recordsToUpdate.getOrDefault(activeId, br));
+                        }
+                    }
+                } else {
+                    // Return shipping: Requires strict item anchoring
+                    List<String> itemIds = orderToReturnItemIdMap.get(orderId);
+                    if (itemIds != null && !itemIds.isEmpty()) {
+                        for (String itemId : itemIds) {
+                            String compositeId = orderId + "-" + itemId;
+                            ReconciliationRecord record = recordsToUpdate.get(compositeId);
+                            if (record == null) {
+                                Optional<ReconciliationRecord> dbRecord = repository.findById(compositeId);
+                                if (dbRecord.isPresent()) record = dbRecord.get();
                             }
-                        } else {
-                            actionableSuspense.add(buildSuspenseRow(row, "Missing from Rithum base data"));
-                            continue;
+                            if (record != null) validRecordsToUpdate.add(record);
+                        }
+                    }
+
+                    // Return fallback: If unanchored, we can only proceed safely if it is a 1-item order
+                    if (validRecordsToUpdate.isEmpty()) {
+                        List<ReconciliationRecord> baseRecords = repository.findBySiteOrderId(orderId);
+                        if (baseRecords != null && baseRecords.size() == 1) {
+                            ReconciliationRecord br = baseRecords.get(0);
+                            String activeId = idTranslationMap.getOrDefault(br.getCompositeId(), br.getCompositeId());
+                            validRecordsToUpdate.add(recordsToUpdate.getOrDefault(activeId, br));
                         }
                     }
                 }
+
+                if (validRecordsToUpdate.isEmpty()) {
+                    if (!isReturnFee) {
+                        actionableSuspense.add(buildSuspenseRow(row, "Missing from Rithum base data"));
+                    } else {
+                        // TODO: Future Suspense Scanner - Implement historical DB query to check if this order already has a processed REFUND row.
+                        actionableSuspense.add(buildSuspenseRow(row, "Unanchored return fee (Multiple items in order, specific returned item unknown)"));
+                    }
+                    continue;
+                }
+
+                // Route or Distribute
+                double others = invert(row.getOthers());
+                double splitAmount = others / validRecordsToUpdate.size();
+
+                for (ReconciliationRecord record : validRecordsToUpdate) {
+                    switch (type) {
+                        case "SHIPPING LABEL PURCHASE" -> {
+                            record.setActualShippingCosts(zeroIfNull(record.getActualShippingCosts()) + splitAmount);
+                        }
+                        case "SHIPPING LABEL FOR RETURN PURCHASE" -> {
+                            record.setReturnShipping(zeroIfNull(record.getReturnShipping()) + splitAmount);
+                        }
+                        default ->  {
+                            // TODO: ROUTE SHIPPING LABEL ADJUSTMENT FEES TO SHIPPINGADJUSTMENT COLUMN
+                            if (isReturnFee) record.addDynamicReturnFee(splitAmount, type);
+                            else record.addDynamicRegularFee(splitAmount, type);
+                        }
+                    }
+                    recordsToUpdate.put(record.getCompositeId(), record);
+                }
+                auditTrail.add(row);
             }
 
 
@@ -191,6 +280,7 @@ public class TemuParserService {
                 record.calculateCommissionRefundDelta();
             }
 
+            repository.deleteAll(recordsToDelete);
             repository.saveAll(recordsToUpdate.values());
             auditRepository.saveAll(auditTrail);
             suspenseRepository.saveAll(actionableSuspense);
@@ -212,20 +302,19 @@ public class TemuParserService {
         }
     }
 
-    private static @NonNull String getCompositeTransactionId(TemuRawTransaction auditRow, String type, String orderId) {
-        LocalDateTime dateTime = auditRow.getDateTime() != null ? auditRow.getDateTime() : null;
+    private @NonNull String getCompositeTransactionId(TemuRawTransaction auditRow, String type, String orderId) {
+        String dateTime = auditRow.getDateTime() != null ? auditRow.getDateTime().toString() : "";
         String relatedId = auditRow.getRelatedId() != null ? auditRow.getRelatedId().trim() : "";
         String orderItemId = auditRow.getOrderItemId() != null ? auditRow.getOrderItemId().trim() : "";
-        String sku = auditRow.getSku() != null ? auditRow.getSku().trim() : "";
-        String skuId = auditRow.getSkuId() != null ? auditRow.getSkuId().trim() : "";
+        Double retailPrice = zeroIfNull(auditRow.getRetailPrice());
 
-        return String.format("%s-%s-%s-%s-%s-%s-%s",
-                dateTime, type, relatedId, orderId, orderItemId, sku, skuId);
+        return String.format("%s-%s-%s-%s-%s-%.2f",
+                dateTime, type, relatedId, orderId, orderItemId, retailPrice);
     }
 
     private TemuRawTransaction buildAuditRow(Row row, Map<TemuColumn, Integer> headerMap) {
         return TemuRawTransaction.builder()
-                .dateTime(ExcelUtils.getDateSafe(row, headerMap, TemuColumn.DATE_TIME))
+                .dateTime(parseTemuDate(row, headerMap))
                 .transactionType(ExcelUtils.getStringSafe(row, headerMap, TemuColumn.TRANSACTION_TYPE))
                 .relatedId(ExcelUtils.getStringSafe(row, headerMap, TemuColumn.RELATED_ID))
                 .orderId(ExcelUtils.getStringSafe(row, headerMap, TemuColumn.ORDER_ID))
@@ -268,5 +357,20 @@ public class TemuParserService {
 
     private double zeroIfNull(Double value) {
         return value != null ? value: 0.0;
+    }
+
+    private LocalDateTime parseTemuDate(Row row, Map<TemuColumn, Integer> headerMap) {
+        LocalDateTime nativeDate = ExcelUtils.getDateSafe(row, headerMap, TemuColumn.DATE_TIME);
+        if (nativeDate != null) return nativeDate;
+
+        String dateStr = ExcelUtils.getStringSafe(row, headerMap, TemuColumn.DATE_TIME);
+        if (dateStr != null && !dateStr.trim().isEmpty()) {
+            try {
+                return LocalDateTime.parse(dateStr.trim(), TEMU_DATE_FORMATTER);
+            } catch (Exception e) {
+                // If it fails, we will catch it later in the suspense checks
+            }
+        }
+        return null;
     }
 }
