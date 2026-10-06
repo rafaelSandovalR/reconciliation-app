@@ -1,0 +1,53 @@
+package com.apex.reconciliation_app.model.shopsimon;
+
+import java.time.LocalDateTime;
+
+public interface ShopSimonTransactionData {
+    String getType();
+    String getEntry();
+    String getOrderId();
+    String getPartnerId();
+    String getPoNumber();
+    String getConsumerOrderNumber();
+    String getSupplierOrderNumber();
+    String getCurrencyCode();
+    Double getLineNumber();
+    String getSku();
+    String getPartnerSku();
+    String getItemId();
+    LocalDateTime getTransactionDate();
+    Double getQuantityShipped();
+    Double getAmountShipped();
+    String getReturnId();
+    Double getQuantityReturned();
+    String getLineItemFulfillment();
+    Double getConsumerUnitPrice();
+    Double getConsumerUnitPriceIncludingTax();
+    String getTaxType();
+    Double getTaxPercentage();
+    Double getUnitTaxAmount();
+    Double getTotalTax();
+    Double getConsumerUnitPriceExcludingTax();
+    Double getCommissionPercentage();
+    Double getTotalCommissionAmount();
+    String getAdjustmentReason();
+    Double getTransactionAmount();
+    Double getTotalAmountPaid();
+    Double getTotalAmountOutstanding();
+    Double getTotalConsumerPrice();
+    String getTrackingNumber();
+    String getInvoiceId();
+    String getSupplierInvoiceNumber();
+    String getInvoiceRecordType();
+    String getSuborderId();
+    LocalDateTime getInvoiceDate();
+    Double getQuantityInvoiced();
+    Double getOrderQuantity();
+    Double getUnitCost();
+    Double getTotalUnitCost();
+    Double getFreightAmount();
+    Double getSalesTaxAmount();
+    Double getCharges();
+    Double getCredits();
+    Double getSubtotalExcludingLineItems();
+}
