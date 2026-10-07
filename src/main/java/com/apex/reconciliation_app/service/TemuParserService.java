@@ -294,18 +294,15 @@ public class TemuParserService {
             auditRepository.saveAll(auditTrail);
             suspenseRepository.saveAll(actionableSuspense);
 
-            List<TemuSuspense> allReceiptErrors = new ArrayList<>(actionableSuspense);
-            allReceiptErrors.addAll(errorSuspense);
-
             List<String> logs = List.of(
                     "Updated " + recordsToUpdate.size() + " Rithum Temu records.",
-                    "Processed " + (auditTrail.size() + allReceiptErrors.size()) + " Temu marketplace rows",
+                    "Processed " + (auditTrail.size() + errorSuspense.size() + actionableSuspense.size()) + " Temu marketplace rows",
                     "- Saved " + auditTrail.size() + " audit rows.",
                     "- Saved " + actionableSuspense.size() + " actionable suspense rows.",
                     "- Skipped " + errorSuspense.size() + " error rows (Added to receipt only)"
             );
 
-            return new MarketplaceParseResult<>(allReceiptErrors, auditTrail, logs);
+            return new MarketplaceParseResult<>(errorSuspense, actionableSuspense, auditTrail, logs);
         } catch (Exception e) {
             throw new RuntimeException("Failed to parse Temu Excel file: " + e.getMessage());
         }

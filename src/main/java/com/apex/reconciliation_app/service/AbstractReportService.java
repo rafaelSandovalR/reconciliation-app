@@ -25,7 +25,8 @@ public abstract class AbstractReportService<S, A, E extends Enum<E> & ExcelColum
 
             CellStyle headerStyle = createHeaderStyle(workbook);
 
-            buildSuspenseSheet(workbook.createSheet("Suspense Queue"), result.suspenseQueue(), headerStyle);
+            buildSuspenseSheet(workbook.createSheet("Error List"), result.errorSuspense(), headerStyle);
+            buildSuspenseSheet(workbook.createSheet("Actionable Suspense Queue"), result.actionableSuspense(), headerStyle);
             buildAuditSheet(workbook.createSheet("Audit Trail"), result.auditTrail(), headerStyle);
 
             workbook.write(out);

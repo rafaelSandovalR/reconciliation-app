@@ -115,18 +115,16 @@ public class ShopSimonParserService {
             auditRepository.saveAll(auditTrail);
             suspenseRepository.saveAll(actionableSuspense);
 
-            List<ShopSimonSuspense> allReceiptErrors = new ArrayList<>(actionableSuspense);
-            allReceiptErrors.addAll(errorSuspense);
 
             List<String> logs = List.of(
                     "Updated " + recordsToUpdate.size() + " Rithum ShopSimon base records.",
-                    "Processed " + (auditTrail.size() + allReceiptErrors.size()) + " ShopSimon marketplace rows",
+                    "Processed " + (auditTrail.size() + errorSuspense.size() + actionableSuspense.size()) + " ShopSimon marketplace rows",
                     "-> Saved " + auditTrail.size() + " audit rows.",
                     "-> Saved " + actionableSuspense.size() + " actionable suspense rows.",
                     "-> Skipped " + errorSuspense.size() + " error rows (Added to receipt only)"
             );
 
-            return new MarketplaceParseResult<>(allReceiptErrors, auditTrail, logs);
+            return new MarketplaceParseResult<>(errorSuspense, actionableSuspense, auditTrail, logs);
 
         } catch (Exception e) {
             throw new RuntimeException("Failed to parse Shop Simon Excel file: " + e.getMessage());

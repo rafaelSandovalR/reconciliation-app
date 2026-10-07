@@ -84,6 +84,8 @@ public class EbayParserService {
                 String compositeTransactionId = String.format("%s-%s-%s-%s-%s-%s-%s",
                         type, orderNumber, transactionId, itemId, sku, referenceId, description);
                 auditRow.setCompositeTransactionId(compositeTransactionId);
+                String compositeId = orderNumber + "-" + sku;
+                auditRow.setCompositeId(compositeId);
 
                 if (processedLineIds.contains(compositeTransactionId)) {
                     errorSuspense.add(buildSuspenseRow(auditRow, "Duplicate record in upload file, already processed"));
@@ -115,7 +117,7 @@ public class EbayParserService {
                 ReconciliationRecord record = null;
                 if (!targetSku.isEmpty()) {
                     // Found in cache
-                    String compositeId = orderNumber + "-" + targetSku;
+                    compositeId = orderNumber + "-" + targetSku;
                     record = recordsToUpdate.get(compositeId);
                     if (record == null) {
                         Optional<ReconciliationRecord> dbRecord = repository.findById(compositeId);
@@ -148,6 +150,8 @@ public class EbayParserService {
                         recordsToUpdate.put(record.getCompositeId(), record);
                     }
                 }
+
+                auditRow.setCompositeId(compositeId);
 
                 if (record == null) {
                     actionableSuspense.add(buildSuspenseRow(auditRow, "Missing from Rithum base data"));
@@ -220,21 +224,17 @@ public class EbayParserService {
             repository.saveAll(recordsToUpdate.values());
             auditRepository.saveAll(auditTrail);
             suspenseRepository.saveAll(actionableSuspense);
-
-            List<EbaySuspense> allReceiptErrors = new ArrayList<>(actionableSuspense);
-            allReceiptErrors.addAll(errorSuspense);
-
             
             List<String> logs = List.of(
                 "Updated " + recordsToUpdate.size() + " Rithum Master Ebay records.",
-                "Processed " + (auditTrail.size() + allReceiptErrors.size()) + " Ebay Marketplace rows",
+                "Processed " + (auditTrail.size() + errorSuspense.size() + actionableSuspense.size()) + " Ebay Marketplace rows",
                 "Saved " + auditTrail.size() + " Audit rows.",
                 "Saved " + actionableSuspense.size() + " Actionable Suspense rows.",
-                "Skipped " + errorSuspense.size() + " error rows (Added to receipt only)"
+                "Skipped " + errorSuspense.size() + " error rows."
             );
 
 
-            return new MarketplaceParseResult<>(allReceiptErrors, auditTrail, logs);
+            return new MarketplaceParseResult<>(errorSuspense, actionableSuspense, auditTrail, logs);
 
         } catch (Exception e) {
             throw new RuntimeException("Failed to parse Ebay Excel file: " + e.getMessage());
