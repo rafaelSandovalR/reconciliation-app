@@ -1,9 +1,9 @@
 package com.apex.reconciliation_app.service;
 
 import com.apex.reconciliation_app.enums.AmazonColumn;
-import com.apex.reconciliation_app.model.AmazonRawTransaction;
-import com.apex.reconciliation_app.model.AmazonSuspense;
-import com.apex.reconciliation_app.model.AmazonTransactionData; // The shared interface
+import com.apex.reconciliation_app.model.amazon.AmazonRawTransaction;
+import com.apex.reconciliation_app.model.amazon.AmazonSuspense;
+import com.apex.reconciliation_app.model.amazon.AmazonTransactionData; // The shared interface
 import org.apache.poi.ss.usermodel.Row;
 import org.springframework.stereotype.Service;
 
@@ -15,19 +15,22 @@ public class AmazonReportService extends AbstractReportService<AmazonSuspense, A
         return AmazonColumn.class;
     }
 
+
     @Override
-    protected String getSuspenseErrorReason(AmazonSuspense suspenseRecord) {
-        return suspenseRecord.getErrorReason();
+    protected void writeSuspenseData(Row row, AmazonSuspense record) {
+        int col = 0;
+        setCellValue(row.createCell(col++), record.getErrorReason());
+        setCellValue(row.createCell(col++), record.getCompositeId());
+        setCellValue(row.createCell(col++), record.getCompositeTransactionId());
+        writeCommonData(row, record, col);
     }
 
     @Override
-    protected void writeSuspenseData(Row row, AmazonSuspense record, int startingColIdx) {
-        writeCommonData(row, record, startingColIdx); // Passes the interface
-    }
-
-    @Override
-    protected void writeAuditData(Row row, AmazonRawTransaction record, int startingColIdx) {
-        writeCommonData(row, record, startingColIdx); // Passes the interface
+    protected void writeAuditData(Row row, AmazonRawTransaction record) {
+        int col = 0;
+        setCellValue(row.createCell(col++), record.getCompositeId());
+        setCellValue(row.createCell(col++), record.getCompositeTransactionId());
+        writeCommonData(row, record, col);
     }
 
     private void writeCommonData(Row row, AmazonTransactionData record, int col) {

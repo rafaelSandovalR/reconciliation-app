@@ -20,23 +20,20 @@ public class ShopSimonReportService  extends AbstractReportService<ShopSimonSusp
     }
 
     @Override
-    protected String getSuspenseErrorReason(ShopSimonSuspense suspenseRecord) {
-        return suspenseRecord.getErrorReason();
+    protected void writeSuspenseData(Row row, ShopSimonSuspense record) {
+        int col = 0;
+        setCellValue(row.createCell(col++), record.getErrorReason());
+        setCellValue(row.createCell(col++), record.getCompositeId());
+        setCellValue(row.createCell(col++), record.getCompositeTransactionId());
+        writeCommonData(row, record, col);
     }
 
     @Override
-    protected String getCompositeId(ShopSimonSuspense suspenseRecord) {
-        return suspenseRecord.getCompositeId();
-    }
-
-    @Override
-    protected void writeSuspenseData(Row row, ShopSimonSuspense record, int startingColIdx) {
-        writeCommonData(row, record, startingColIdx);
-    }
-
-    @Override
-    protected void writeAuditData(Row row, ShopSimonRawTransaction record, int startingColIdx) {
-        writeCommonData(row, record, startingColIdx);
+    protected void writeAuditData(Row row, ShopSimonRawTransaction record) {
+        int col = 0;
+        setCellValue(row.createCell(col++), record.getCompositeId());
+        setCellValue(row.createCell(col++), record.getCompositeTransactionId());
+        writeCommonData(row, record, col);
     }
 
     private void writeCommonData(Row row, ShopSimonTransactionData record, int col) {

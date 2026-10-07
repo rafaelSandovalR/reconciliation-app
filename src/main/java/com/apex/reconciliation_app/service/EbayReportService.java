@@ -1,9 +1,9 @@
 package com.apex.reconciliation_app.service;
 
 import com.apex.reconciliation_app.enums.EbayColumn;
-import com.apex.reconciliation_app.model.EbayRawTransaction;
-import com.apex.reconciliation_app.model.EbaySuspense;
-import com.apex.reconciliation_app.model.EbayTransactionData;
+import com.apex.reconciliation_app.model.ebay.EbayRawTransaction;
+import com.apex.reconciliation_app.model.ebay.EbaySuspense;
+import com.apex.reconciliation_app.model.ebay.EbayTransactionData;
 import org.apache.poi.ss.usermodel.Row;
 import org.springframework.stereotype.Service;
 
@@ -15,19 +15,22 @@ public class EbayReportService extends AbstractReportService<EbaySuspense, EbayR
         return EbayColumn.class;
     }
 
+
     @Override
-    protected String getSuspenseErrorReason(EbaySuspense suspenseRecord) {
-        return suspenseRecord.getErrorReason();
+    protected void writeSuspenseData(Row row, EbaySuspense record) {
+        int col = 0;
+        setCellValue(row.createCell(col++), record.getErrorReason());
+        setCellValue(row.createCell(col++), record.getCompositeId());
+        setCellValue(row.createCell(col++), record.getCompositeTransactionId());
+        writeCommonData(row, record, col);
     }
 
     @Override
-    protected void writeSuspenseData(Row row, EbaySuspense record, int startingColIdx) {
-        writeCommonData(row, record, startingColIdx);
-    }
-
-    @Override
-    protected void writeAuditData(Row row, EbayRawTransaction record, int startingColIdx) {
-        writeCommonData(row, record, startingColIdx);
+    protected void writeAuditData(Row row, EbayRawTransaction record) {
+        int col = 0;
+        setCellValue(row.createCell(col++), record.getCompositeId());
+        setCellValue(row.createCell(col++), record.getCompositeTransactionId());
+        writeCommonData(row, record, col);
     }
 
     private void writeCommonData(Row row, EbayTransactionData record, int col) {

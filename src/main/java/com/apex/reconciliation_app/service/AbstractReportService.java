@@ -15,10 +15,9 @@ public abstract class AbstractReportService<S, A, E extends Enum<E> & ExcelColum
     protected final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("M/d/yyyy");
 
     protected abstract Class<E> getColumnEnumClass();
-    protected abstract String getSuspenseErrorReason(S suspenseRecord);
-    protected abstract String getCompositeId(S suspenseRecord);
-    protected abstract void writeSuspenseData(Row row, S record, int startingColIdx);
-    protected abstract void writeAuditData(Row row, A record, int startingColIdx);
+
+    protected abstract void writeSuspenseData(Row row, S record);
+    protected abstract void writeAuditData(Row row, A record);
 
     public ByteArrayInputStream generateReport(MarketplaceParseResult<S, A> result) {
         try (Workbook workbook = new XSSFWorkbook();
@@ -41,13 +40,21 @@ public abstract class AbstractReportService<S, A, E extends Enum<E> & ExcelColum
         Row headerRow = sheet.createRow(0);
         int colIdx = 0;
 
+        // 1. Error Reason
         Cell errorHeader = headerRow.createCell(colIdx++);
         errorHeader.setCellValue("Error Reason");
         errorHeader.setCellStyle(headerStyle);
 
-        Cell compositeId = headerRow.createCell(colIdx++);
-        compositeId.setCellValue("Composite ID");
-        compositeId.setCellStyle(headerStyle);
+        // 2. Composite ID
+        Cell compIdHeader = headerRow.createCell(colIdx++);
+        compIdHeader.setCellValue("Composite ID");
+        compIdHeader.setCellStyle(headerStyle);
+
+        // 3. Composite Transaction ID
+        Cell txIdHeader = headerRow.createCell(colIdx++);
+        txIdHeader.setCellValue("Composite Transaction ID");
+        txIdHeader.setCellStyle(headerStyle);
+
 
         for (E col : getColumnEnumClass().getEnumConstants()) {
             Cell cell = headerRow.createCell(colIdx++);
@@ -58,17 +65,25 @@ public abstract class AbstractReportService<S, A, E extends Enum<E> & ExcelColum
         int rowIdx = 1;
         for (S record : data) {
             Row row = sheet.createRow(rowIdx++);
-            setCellValue(row.createCell(0), getSuspenseErrorReason(record));
-            setCellValue(row.createCell(1), getCompositeId(record));
-            writeSuspenseData(row, record, 2); // Shifted by 1 for Error Reason (2 for compositeId)
+            writeSuspenseData(row, record);
         }
 
-        for (int i = 0; i < 10; i++) sheet.autoSizeColumn(i);
+        //for (int i = 0; i < 15; i++) sheet.autoSizeColumn(i);
     }
 
     private void buildAuditSheet(Sheet sheet, List<A> data, CellStyle headerStyle) {
         Row headerRow = sheet.createRow(0);
         int colIdx = 0;
+
+        // 1. Composite ID
+        Cell compIdHeader = headerRow.createCell(colIdx++);
+        compIdHeader.setCellValue("Composite ID");
+        compIdHeader.setCellStyle(headerStyle);
+
+        // 2. Composite Transaction ID
+        Cell txIdHeader = headerRow.createCell(colIdx++);
+        txIdHeader.setCellValue("Composite Transaction ID");
+        txIdHeader.setCellStyle(headerStyle);
 
         for (E col : getColumnEnumClass().getEnumConstants()) {
             Cell cell = headerRow.createCell(colIdx++);
@@ -79,10 +94,10 @@ public abstract class AbstractReportService<S, A, E extends Enum<E> & ExcelColum
         int rowIdx = 1;
         for (A record : data) {
             Row row = sheet.createRow(rowIdx++);
-            writeAuditData(row, record, 0);
+            writeAuditData(row, record);
         }
 
-        for (int i = 0; i < 9; i++) sheet.autoSizeColumn(i);
+        //for (int i = 0; i < 15; i++) sheet.autoSizeColumn(i);
     }
 
     private CellStyle createHeaderStyle(Workbook workbook) {

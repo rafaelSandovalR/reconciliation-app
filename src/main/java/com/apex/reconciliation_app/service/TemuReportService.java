@@ -13,20 +13,22 @@ public class TemuReportService extends AbstractReportService<TemuSuspense, TemuR
     @Override
     protected Class<TemuColumn> getColumnEnumClass() { return TemuColumn.class; }
 
-    @Override
-    protected String getSuspenseErrorReason(TemuSuspense suspenseRecord) { return suspenseRecord.getErrorReason(); }
 
     @Override
-    protected String getCompositeId(TemuSuspense suspenseRecord) { return suspenseRecord.getCompositeId(); }
-
-    @Override
-    protected void writeSuspenseData(Row row, TemuSuspense record, int startingColIdx) {
-        writeCommonData(row, record, startingColIdx);
+    protected void writeSuspenseData(Row row, TemuSuspense record) {
+        int col = 0;
+        setCellValue(row.createCell(col++), record.getErrorReason());
+        setCellValue(row.createCell(col++), record.getCompositeId());
+        setCellValue(row.createCell(col++), record.getCompositeTransactionId());
+        writeCommonData(row, record, col);
     }
 
     @Override
-    protected void writeAuditData(Row row, TemuRawTransaction record, int startingColIdx) {
-        writeCommonData(row, record, startingColIdx);
+    protected void writeAuditData(Row row, TemuRawTransaction record) {
+        int col = 0;
+        setCellValue(row.createCell(col++), record.getCompositeId());
+        setCellValue(row.createCell(col++), record.getCompositeTransactionId());
+        writeCommonData(row, record, col);
     }
 
     private void writeCommonData(Row row, TemuTransactionData record, int col) {
