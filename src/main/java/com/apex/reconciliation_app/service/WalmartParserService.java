@@ -162,20 +162,16 @@ public class WalmartParserService {
             auditRepository.saveAll(auditTrail);
             suspenseRepository.saveAll(actionableSuspense);
 
-            List<WalmartSuspense> allReceiptErrors = new ArrayList<>(actionableSuspense);
-            allReceiptErrors.addAll(errorSuspense);
-
-
             List<String> logs = List.of(
                     "Updated " + recordsToUpdate.size() + "Rithum Walmart records.",
-                    "Processed " + (auditTrail.size() + allReceiptErrors.size()) + "Walmart marketplace rows.",
+                    "Processed " + (auditTrail.size() + errorSuspense.size() + actionableSuspense.size()) + "Walmart marketplace rows.",
                     "Saved " + auditTrail.size() + " audit rows.",
                     "Saved " + actionableSuspense.size() + " actionable suspense rows.",
                     "Skipped " + errorSuspense.size() + " error rows (Added to receipt only)."
             );
 
 
-            return new MarketplaceParseResult<>(allReceiptErrors, auditTrail, logs);
+            return new MarketplaceParseResult<>(errorSuspense, actionableSuspense, auditTrail, logs);
 
         } catch (Exception e) {
             throw new RuntimeException("Failed to parse Walmart Excel file: " + e.getMessage());

@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class WalmartRawTransaction {
+public class WalmartRawTransaction implements WalmartTransactionData{
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -27,6 +27,8 @@ public class WalmartRawTransaction {
 
     @Column(unique = true)
     private String compositeTransactionId;
+
+    private String compositeId;
 
     // IDENTIFIERS
     private String transactionKey;

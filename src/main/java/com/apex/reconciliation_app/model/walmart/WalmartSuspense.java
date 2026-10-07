@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class WalmartSuspense {
+public class WalmartSuspense implements WalmartTransactionData{
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -25,6 +25,11 @@ public class WalmartSuspense {
     // Automatically records when row was ingested
     @Builder.Default
     private LocalDateTime importTimeStamp = LocalDateTime.now();
+
+    @Column(unique = true)
+    private String compositeTransactionId;
+
+    private String compositeId;
 
     // IDENTIFIERS
     private String transactionKey;
