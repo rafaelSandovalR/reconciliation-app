@@ -6,9 +6,13 @@ import com.apex.reconciliation_app.model.shopsimon.ShopSimonSuspense;
 import com.apex.reconciliation_app.model.shopsimon.ShopSimonTransactionData;
 import org.apache.poi.ss.usermodel.Row;
 import org.springframework.stereotype.Service;
+import java.time.format.DateTimeFormatter;
 
 @Service
 public class ShopSimonReportService  extends AbstractReportService<ShopSimonSuspense, ShopSimonRawTransaction, ShopSimonColumn> {
+
+    private static final DateTimeFormatter SHOP_SIMON_FORMATTER =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
 
     @Override
     protected Class<ShopSimonColumn> getColumnEnumClass() {
@@ -48,7 +52,7 @@ public class ShopSimonReportService  extends AbstractReportService<ShopSimonSusp
         setCellValue(row.createCell(col++), record.getSku());
         setCellValue(row.createCell(col++), record.getPartnerSku());
         setCellValue(row.createCell(col++), record.getItemId());
-        setCellValue(row.createCell(col++), record.getTransactionDate() != null ? record.getTransactionDate().format(formatter) : null);
+        setCellValue(row.createCell(col++), record.getTransactionDate() != null ? record.getTransactionDate().format(SHOP_SIMON_FORMATTER) : null);
         setCellValue(row.createCell(col++), record.getQuantityShipped());
         setCellValue(row.createCell(col++), record.getAmountShipped());
         setCellValue(row.createCell(col++), record.getReturnId());
@@ -73,7 +77,7 @@ public class ShopSimonReportService  extends AbstractReportService<ShopSimonSusp
         setCellValue(row.createCell(col++), record.getSupplierInvoiceNumber());
         setCellValue(row.createCell(col++), record.getInvoiceRecordType());
         setCellValue(row.createCell(col++), record.getSuborderId());
-        setCellValue(row.createCell(col++), record.getInvoiceDate() != null ? record.getInvoiceDate().format(formatter) : null);
+        setCellValue(row.createCell(col++), record.getInvoiceDate() != null ? record.getInvoiceDate().format(SHOP_SIMON_FORMATTER) : null);
         setCellValue(row.createCell(col++), record.getQuantityInvoiced());
         setCellValue(row.createCell(col++), record.getOrderQuantity());
         setCellValue(row.createCell(col++), record.getUnitCost());

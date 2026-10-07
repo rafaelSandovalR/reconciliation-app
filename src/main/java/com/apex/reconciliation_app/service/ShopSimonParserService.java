@@ -18,6 +18,7 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
 import java.io.InputStream;
+import java.time.LocalDateTime;
 import java.util.*;
 
 @Service
@@ -28,7 +29,6 @@ public class ShopSimonParserService {
     private final ShopSimonRawTransactionRepository auditRepository;
     private final ShopSimonSuspenseRepository suspenseRepository;
 
-    // TODO: SHOP_SIMON_DATE_FORMATTER
 
     public MarketplaceParseResult<ShopSimonSuspense, ShopSimonRawTransaction> parseAndUpdate(InputStream inputStream) {
         try (Workbook workbook = new XSSFWorkbook(inputStream)) {
@@ -52,8 +52,6 @@ public class ShopSimonParserService {
                 String sku = auditRow.getSku() != null ? auditRow.getSku().trim() : "";
 
 
-                // TODO: Add date_time for compositeTransactionId
-
                 if (poNumber.isEmpty() || sku.isEmpty()) {
                     errorSuspense.add(buildSuspenseRow(auditRow, "Missing Purchase Order or SKU (Non-order line item"));
                     continue;
@@ -61,8 +59,11 @@ public class ShopSimonParserService {
                 String compositeId = poNumber + "-" + sku;
                 auditRow.setCompositeId(compositeId);
                 String type = auditRow.getType() != null ? auditRow.getType().trim().toUpperCase() : "";
-                String compositeTransactionId = String.format("%s-%s-%s",
-                        type, poNumber, sku);
+                String dateTime = auditRow.getTransactionDate() != null ? auditRow.getTransactionDate().toString() : "";
+                double totalConsumerPrice = auditRow.getTotalConsumerPrice() != null ? auditRow.getTotalConsumerPrice() : 0.0;
+
+                String compositeTransactionId = String.format("%s-%s-%s-%s-%.2f",
+                        dateTime, type, poNumber, sku, totalConsumerPrice);
                 auditRow.setCompositeTransactionId(compositeTransactionId);
 
                 // IDEMPOTENCY CHECKS
@@ -90,7 +91,6 @@ public class ShopSimonParserService {
                     }
                 }
 
-                double totalConsumerPrice = auditRow.getTotalConsumerPrice() != null ? auditRow.getTotalConsumerPrice() : 0.0;
                 double totalCommissionAmount = auditRow.getTotalCommissionAmount() != null ? auditRow.getTotalCommissionAmount() : 0.0;
 
                 switch (type) {
@@ -147,7 +147,7 @@ public class ShopSimonParserService {
                 .sku(ExcelUtils.getStringSafe(row, headerMap, ShopSimonColumn.SKU))
                 .partnerSku(ExcelUtils.getStringSafe(row, headerMap, ShopSimonColumn.PARTNER_SKU))
                 .itemId(ExcelUtils.getStringSafe(row, headerMap, ShopSimonColumn.ITEM_ID))
-                .transactionDate(ExcelUtils.getDateSafe(row, headerMap, ShopSimonColumn.TRANSACTION_DATE))
+                .transactionDate(parseShopSimonDate(row, headerMap, ShopSimonColumn.TRANSACTION_DATE))
                 .quantityShipped(ExcelUtils.getDoubleSafe(row, headerMap, ShopSimonColumn.QUANTITY_SHIPPED))
                 .amountShipped(ExcelUtils.getDoubleSafe(row, headerMap, ShopSimonColumn.AMOUNT_SHIPPED))
                 .returnId(ExcelUtils.getStringSafe(row, headerMap, ShopSimonColumn.RETURN_ID))
@@ -172,7 +172,7 @@ public class ShopSimonParserService {
                 .supplierInvoiceNumber(ExcelUtils.getStringSafe(row, headerMap, ShopSimonColumn.SUPPLIER_INVOICE_NUMBER))
                 .invoiceRecordType(ExcelUtils.getStringSafe(row, headerMap, ShopSimonColumn.INVOICE_RECORD_TYPE))
                 .suborderId(ExcelUtils.getStringSafe(row, headerMap, ShopSimonColumn.SUBORDER_ID))
-                .invoiceDate(ExcelUtils.getDateSafe(row, headerMap, ShopSimonColumn.INVOICE_DATE))
+                .invoiceDate(parseShopSimonDate(row, headerMap, ShopSimonColumn.INVOICE_DATE))
                 .quantityInvoiced(ExcelUtils.getDoubleSafe(row, headerMap, ShopSimonColumn.QUANTITY_INVOICED))
                 .orderQuantity(ExcelUtils.getDoubleSafe(row, headerMap, ShopSimonColumn.ORDER_QUANTITY))
                 .unitCost(ExcelUtils.getDoubleSafe(row, headerMap, ShopSimonColumn.UNIT_COST))
@@ -190,5 +190,20 @@ public class ShopSimonParserService {
         BeanUtils.copyProperties(auditRow, suspenseRow);
         suspenseRow.setErrorReason(reason);
         return suspenseRow;
+    }
+
+    private LocalDateTime parseShopSimonDate(Row row, Map<ShopSimonColumn, Integer> headerMap, ShopSimonColumn column) {
+        LocalDateTime nativeDate = ExcelUtils.getDateSafe(row, headerMap, column);
+        if (nativeDate != null ) return nativeDate;
+
+        String dateStr = ExcelUtils.getStringSafe(row, headerMap, column);
+        if (dateStr != null && !dateStr.trim().isEmpty()) {
+            try {
+                return java.time.OffsetDateTime.parse(dateStr.trim()).toLocalDateTime();
+            } catch (Exception e) {
+                // TODO: Handle if missing
+            }
+        }
+        return null;
     }
 }
