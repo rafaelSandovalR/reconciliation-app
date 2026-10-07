@@ -25,6 +25,11 @@ public class AmazonSuspense implements AmazonTransactionData{
     @Builder.Default
     private LocalDateTime importTimeStamp = LocalDateTime.now();
 
+    @Column(unique = true)
+    private String compositeTransactionId;
+
+    private String compositeId;
+
     // IDENTIFIERS
     private String settlementId;
     private String orderId;

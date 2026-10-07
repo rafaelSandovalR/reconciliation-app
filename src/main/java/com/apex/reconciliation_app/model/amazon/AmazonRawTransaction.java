@@ -25,6 +25,8 @@ public class AmazonRawTransaction implements AmazonTransactionData{
     @Column(unique = true)
     private String compositeTransactionId;
 
+    private String compositeId;
+
     // IDENTIFIERS
     private String settlementId;
     private String orderId;

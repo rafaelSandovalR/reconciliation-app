@@ -25,6 +25,8 @@ public class EbayRawTransaction implements EbayTransactionData{
     @Column(unique = true)
     private String compositeTransactionId;
 
+    private String compositeId;
+
     // Identifiers
     private String type;
     private String orderNumber;

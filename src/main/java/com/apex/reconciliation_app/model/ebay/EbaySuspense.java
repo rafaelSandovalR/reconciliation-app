@@ -24,6 +24,12 @@ public class EbaySuspense implements EbayTransactionData{
     @Builder.Default
     private LocalDateTime importTimeStamp = LocalDateTime.now();
 
+
+    @Column(unique = true)
+    private String compositeTransactionId;
+
+    private String compositeId;
+
     // Identifiers
     private String type;
     private String orderNumber;
