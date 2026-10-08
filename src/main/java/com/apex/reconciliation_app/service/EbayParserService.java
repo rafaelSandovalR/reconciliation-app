@@ -33,34 +33,42 @@ public class EbayParserService {
             Sheet sheet = workbook.getSheetAt(0);
             Map<EbayColumn, Integer> headerMap = ExcelUtils.buildHeaderMap(sheet.getRow(0), EbayColumn.class);
             Map<String, ReconciliationRecord> recordsToUpdate = new HashMap<>();
+            List<ReconciliationRecord> recordsToDelete = new ArrayList<>();
+            Map<String, String> idTranslationMap = new HashMap<>();
             List<EbayRawTransaction> auditTrail = new ArrayList<>();
             List<EbaySuspense> actionableSuspense = new ArrayList<>();
             List<EbaySuspense> errorSuspense = new ArrayList<>();
             Set<String> processedLineIds = new HashSet<>();
 
-            // PASS 1: Ingestion & Map Building
-            List<EbayRawTransaction> validRows = new ArrayList<>();
+            // PASS 1: Ingestion, Map Building & Summary Filtering
+            List<EbayRawTransaction> itemLevelRows = new ArrayList<>();
             Map<String, String> itemToSkuMap = new HashMap<>();     // Key: OrderNumber-ItemID -> Anchored SKU
             Map<String, String> returnToSkuMap = new HashMap<>();   // Key: ReferenceID -> SKU
 
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
                 Row row = sheet.getRow(i);
                 if (row == null) continue;
+
                 EbayRawTransaction auditRow = buildAuditRow(row, headerMap);
                 String orderNumber = auditRow.getOrderNumber() != null ? auditRow.getOrderNumber().trim() : "";
+
                 if (orderNumber.isEmpty()) {
-                    errorSuspense.add(buildSuspenseRow(auditRow, "Skipped: Missing Purchase Order(Non-order line item)"));
+                    errorSuspense.add(buildSuspenseRow(auditRow, "Missing Order Number(Non-order line item)"));
                     continue;
                 }
-
-                validRows.add(auditRow);
 
                 String type = auditRow.getType() != null ? auditRow.getType().trim().toUpperCase() : "";
                 String sku = auditRow.getCustomLabel() != null ? auditRow.getCustomLabel().trim() : "";
                 String itemId = auditRow.getItemId() != null ? auditRow.getItemId().trim() : "";
                 String referenceId = auditRow.getReferenceId() != null ? auditRow.getReferenceId().trim() : "";
 
-                // Anchor Method: putIfAbsent locks in the FIRST sku scanned for this Item ID
+                // Filter Master Summary Rows
+                if ("ORDER".equals(type) && "--".equals(itemId)) {
+                    auditTrail.add(auditRow);
+                    continue;
+                }
+
+                // Build anchor maps
                 if ("ORDER".equals(type) && !sku.isEmpty() && !itemId.isEmpty()) {
                     String itemKey = orderNumber + "-" + itemId;
                     itemToSkuMap.putIfAbsent(itemKey, sku);
@@ -68,10 +76,12 @@ public class EbayParserService {
                 if ("REFUND".equals(type) && !sku.isEmpty() & !referenceId.isEmpty()) {
                     returnToSkuMap.put(referenceId, sku);
                 }
+
+                itemLevelRows.add(auditRow);
             }
 
             // PASS 2: Routing & Math
-            for (EbayRawTransaction auditRow : validRows) {
+            for (EbayRawTransaction auditRow : itemLevelRows) {
                 String orderNumber = auditRow.getOrderNumber() != null ? auditRow.getOrderNumber().trim() : "";
                 String sku = auditRow.getCustomLabel() != null ? auditRow.getCustomLabel().trim() : "";
                 String transactionId = auditRow.getTransactionId() != null ? auditRow.getTransactionId().trim() : "";
@@ -84,8 +94,6 @@ public class EbayParserService {
                 String compositeTransactionId = String.format("%s-%s-%s-%s-%s-%s-%s",
                         type, orderNumber, transactionId, itemId, sku, referenceId, description);
                 auditRow.setCompositeTransactionId(compositeTransactionId);
-                String compositeId = orderNumber + "-" + sku;
-                auditRow.setCompositeId(compositeId);
 
                 if (processedLineIds.contains(compositeTransactionId)) {
                     errorSuspense.add(buildSuspenseRow(auditRow, "Duplicate record in upload file, already processed"));
@@ -113,55 +121,74 @@ public class EbayParserService {
                     }
                 }
 
-                // Locate the Anchor Record (Cache -> DB -> Fallback)
-                ReconciliationRecord record = null;
-                if (!targetSku.isEmpty()) {
-                    // Found in cache
-                    compositeId = orderNumber + "-" + targetSku;
-                    record = recordsToUpdate.get(compositeId);
-                    if (record == null) {
-                        Optional<ReconciliationRecord> dbRecord = repository.findById(compositeId);
-                        if (dbRecord.isPresent()) {
-                            record = dbRecord.get();
-                            recordsToUpdate.put(compositeId, record);
-                        }
-                    }
-                } else {
-                    // Fallback: Fragmented File Scenario
-                    List<ReconciliationRecord> dbRecords = repository.findBySiteOrderId(orderNumber);
-                    if (!dbRecords.isEmpty()) {
-                        ReconciliationRecord matchedRecord = null;
-
-                        // Attempt precise anchoring via Site Listing ID
-                        if (!itemId.isEmpty()) {
-                            matchedRecord = dbRecords.stream()
-                                    .filter(r -> itemId.equals(r.getSiteListingId()))
-                                    .findFirst()
-                                    .orElse(null);
-                        }
-
-                        // Ultimate fallback for order-level costs
-                        if (matchedRecord == null) {
-                            matchedRecord = dbRecords.get(0);
-                        }
-
-                        // Enforce Cache Integrity
-                        record = recordsToUpdate.getOrDefault(matchedRecord.getCompositeId(), matchedRecord);
-                        recordsToUpdate.put(record.getCompositeId(), record);
-                    }
-                }
-
-                auditRow.setCompositeId(compositeId);
-
-                if (record == null) {
-                    actionableSuspense.add(buildSuspenseRow(auditRow, "Missing from Rithum base data"));
+                if (targetSku.isEmpty()) {
+                    actionableSuspense.add(buildSuspenseRow(auditRow, "Cannot determine target SKU for unanchored " + type + " record."));
                     continue;
                 }
 
+                // Locate the Anchor Record (Cache -> DB -> Fallback)
+                String compositeId = orderNumber + "-" + targetSku;
+                auditRow.setCompositeId(compositeId);
+                ReconciliationRecord record = recordsToUpdate.get(compositeId);
+
+                if (record == null) {
+                    Optional<ReconciliationRecord> dbRecord = repository.findById(compositeId);
+                    if (dbRecord.isPresent()) {
+                        record = dbRecord.get();
+                    } else {
+                        // Cascading DB fallback
+                        List<ReconciliationRecord> baseRecords = repository.findBySiteOrderId(orderNumber);
+
+                        if (baseRecords.isEmpty()) {
+                            actionableSuspense.add(buildSuspenseRow(auditRow, "Missing from Rithum base data."));
+                            continue;
+                        } else if (baseRecords.size() == 1) {
+                            // Fallback 1: Single-item order -> Auto-heal
+                            record = baseRecords.get(0);
+                        } else {
+                            // Fallback 2: Precise Match via eBay Site Listing ID
+                            ReconciliationRecord listingIdMatch = baseRecords.stream()
+                                    .filter(r -> itemId.equals(r.getSiteListingId()))
+                                    .findFirst()
+                                    .orElse(null);
+
+                            if (listingIdMatch != null) {
+                                record = listingIdMatch;
+                            } else {
+                                // Could add third fallback: fuzzy title match
+                                actionableSuspense.add(buildSuspenseRow(auditRow, "Ambigious match: Rithum data missing SKU, and all fallback matches failed."));
+                                continue;
+                            }
+                        }
+
+                        // Auto-heal Rithum Record
+                        String oldCompositeId = record.getCompositeId();
+                        ReconciliationRecord healedRecord = new ReconciliationRecord();
+                        BeanUtils.copyProperties(record, healedRecord);
+                        healedRecord.setSku(targetSku);
+                        healedRecord.setCompositeId(compositeId);
+
+                        idTranslationMap.put(oldCompositeId, compositeId);
+                        recordsToDelete.add(record);
+                        record = healedRecord;
+                    }
+                }
+
+                recordsToUpdate.put(record.getCompositeId(), record);
+
                 // Invert all of these
                 double grossTransactionAmount = invert(auditRow.getGrossTransactionAmount());
+                double itemSubtotal = zeroIfNull(auditRow.getItemSubtotal());
+                double shippingAndHandling = zeroIfNull(auditRow.getShippingAndHandling());
+
+                // Fallback for multi-item lines where GTA is "--" (0.0)
+                if (grossTransactionAmount == 0 && itemSubtotal != 0) {
+                    grossTransactionAmount = (itemSubtotal + shippingAndHandling) * -1;
+                }
+
                 double finalValueFeeVariable = invert(auditRow.getFinalValueFeeVariable());
                 double finalValueFeeFixed = invert(auditRow.getFinalValueFeeFixed());
+                double commission = finalValueFeeFixed + finalValueFeeVariable;
                 double regulatoryOperatingFee = invert(auditRow.getRegulatoryOperatingFee());
                 double veryHighItemNotAsDescribedFee = invert(auditRow.getVeryHighItemNotAsDescribedFee());
                 double belowStandardPerformancefee = invert(auditRow.getBelowStandardPerformanceFee());
@@ -175,9 +202,8 @@ public class EbayParserService {
                     case "ORDER" -> {
                         // Undo the invert ONLY for siteOrderAmount
                         record.setSiteOrderAmount(zeroIfNull(record.getSiteOrderAmount()) + grossTransactionAmount * -1);
-                        record.setSiteOrderFee(zeroIfNull(record.getSiteOrderFee()) + finalValueFeeVariable);
+                        record.setSiteOrderFee(zeroIfNull(record.getSiteOrderFee()) + commission);
 
-                        if (finalValueFeeFixed != 0) record.addDynamicRegularFee(finalValueFeeFixed, "FINAL VALUE FEE FIXED");
                         if (regulatoryOperatingFee != 0) record.addDynamicRegularFee(regulatoryOperatingFee, "REGULATORY OPERATING FEE");
                         if (veryHighItemNotAsDescribedFee != 0) record.addDynamicRegularFee(veryHighItemNotAsDescribedFee, "VERY HIGH \"ITEM NOT AS DESCRIBED\" FEE");
                         if (belowStandardPerformancefee != 0) record.addDynamicRegularFee(belowStandardPerformancefee, "BELOW STANDARD PERFORMANCE FEE");
@@ -187,11 +213,12 @@ public class EbayParserService {
 
                     }
                     case "REFUND" -> {
-                        record.setReturnStatus("Yes");
+                        if (description.contains("RETURN")){
+                            record.setReturnStatus("Yes");
+                        }
                         record.setAmountRefunded(zeroIfNull(record.getAmountRefunded()) + grossTransactionAmount);
-                        record.setCommissionRefund(zeroIfNull(record.getCommissionRefund()) + finalValueFeeVariable);
+                        record.setCommissionRefund(zeroIfNull(record.getCommissionRefund()) + commission);
 
-                        if (finalValueFeeFixed != 0) record.addDynamicReturnFee(finalValueFeeFixed, "FINAL VALUE FEE FIXED");
                         if (regulatoryOperatingFee != 0) record.addDynamicReturnFee(regulatoryOperatingFee, "REGULATORY OPERATING FEE");
                         if (veryHighItemNotAsDescribedFee != 0) record.addDynamicReturnFee(veryHighItemNotAsDescribedFee, "VERY HIGH \"ITEM NOT AS DESCRIBED\" FEE");
                         if (belowStandardPerformancefee != 0) record.addDynamicReturnFee(belowStandardPerformancefee, "BELOW STANDARD PERFORMANCE FEE");
@@ -200,11 +227,9 @@ public class EbayParserService {
                         if (depositProcessingFee != 0) record.addDynamicReturnFee(depositProcessingFee, "DEPOSIT PROCESSING FEE");
                     }
                     case "OTHER FEE" -> {
-                        // Invert grossTransactionAmount because it wasn't originally inverted
                         record.addDynamicRegularFee(grossTransactionAmount, description);
                     }
                     case "SHIPPING LABEL" -> {
-                        // Invert grossTransactionAmount because it wasn't originally inverted
                         record.setReturnShipping(zeroIfNull(record.getReturnShipping()) + grossTransactionAmount);
                     }
                     default -> {
@@ -221,6 +246,7 @@ public class EbayParserService {
             }
 
             // SAVE UPDATED DATA
+            repository.deleteAll(recordsToDelete);
             repository.saveAll(recordsToUpdate.values());
             auditRepository.saveAll(auditTrail);
             suspenseRepository.saveAll(actionableSuspense);
