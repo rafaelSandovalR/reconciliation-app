@@ -34,7 +34,6 @@ public class EbayParserService {
             Map<EbayColumn, Integer> headerMap = ExcelUtils.buildHeaderMap(sheet.getRow(0), EbayColumn.class);
             Map<String, ReconciliationRecord> recordsToUpdate = new HashMap<>();
             List<ReconciliationRecord> recordsToDelete = new ArrayList<>();
-            Map<String, String> idTranslationMap = new HashMap<>();
             List<EbayRawTransaction> auditTrail = new ArrayList<>();
             List<EbaySuspense> actionableSuspense = new ArrayList<>();
             List<EbaySuspense> errorSuspense = new ArrayList<>();
@@ -171,7 +170,6 @@ public class EbayParserService {
                         healedRecord.setSku(targetSku);
                         healedRecord.setCompositeId(compositeId);
 
-                        idTranslationMap.put(oldCompositeId, compositeId);
                         recordsToDelete.add(record);
                         record = healedRecord;
                     }
