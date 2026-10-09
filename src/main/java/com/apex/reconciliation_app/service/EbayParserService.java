@@ -57,19 +57,19 @@ public class EbayParserService {
                     continue;
                 }
 
-                String type = auditRow.getType() != null ? auditRow.getType().trim().toUpperCase() : "";
-                String sku = auditRow.getCustomLabel() != null ? auditRow.getCustomLabel().trim() : "";
-                String itemId = auditRow.getItemId() != null ? auditRow.getItemId().trim() : "";
-                String referenceId = auditRow.getReferenceId() != null ? auditRow.getReferenceId().trim() : "";
+                String type = cleanEbayString(auditRow.getType()).toUpperCase();
+                String sku = cleanEbayString(auditRow.getCustomLabel());
+                String itemId = cleanEbayString(auditRow.getItemId());
+                String referenceId = cleanEbayString(auditRow.getReferenceId());
 
                 // Filter Master Summary Rows
-                if ("ORDER".equals(type) && "--".equals(itemId)) {
+                if ("ORDER".equals(type) && itemId.isEmpty()) {
                     auditTrail.add(auditRow);
                     continue;
                 }
 
                 // Build anchor maps
-                if ("ORDER".equals(type) && !sku.isEmpty() && !itemId.isEmpty()) {
+                if ("ORDER".equals(type) && !sku.isEmpty()) {
                     String itemKey = orderNumber + "-" + itemId;
                     itemToSkuMap.putIfAbsent(itemKey, sku);
                 }
@@ -82,13 +82,13 @@ public class EbayParserService {
 
             // PASS 2: Routing & Math
             for (EbayRawTransaction auditRow : itemLevelRows) {
-                String orderNumber = auditRow.getOrderNumber() != null ? auditRow.getOrderNumber().trim() : "";
-                String sku = auditRow.getCustomLabel() != null ? auditRow.getCustomLabel().trim() : "";
-                String transactionId = auditRow.getTransactionId() != null ? auditRow.getTransactionId().trim() : "";
-                String itemId = auditRow.getItemId() != null ? auditRow.getItemId().trim() : "";
-                String referenceId = auditRow.getReferenceId() != null ? auditRow.getReferenceId().trim() : "";
-                String type = auditRow.getType() != null ? auditRow.getType().trim().toUpperCase() : "";
-                String description = auditRow.getDescription() != null ? auditRow.getDescription().trim().toUpperCase() : "";
+                String orderNumber = cleanEbayString(auditRow.getOrderNumber());
+                String sku = cleanEbayString(auditRow.getCustomLabel());
+                String transactionId = cleanEbayString(auditRow.getTransactionId());
+                String itemId = cleanEbayString(auditRow.getItemId());
+                String referenceId = cleanEbayString(auditRow.getReferenceId());
+                String type = cleanEbayString(auditRow.getType()).toUpperCase();
+                String description = cleanEbayString(auditRow.getDescription()).toUpperCase();
 
                 // Idempotency Check
                 String compositeTransactionId = String.format("%s-%s-%s-%s-%s-%s-%s",
@@ -121,50 +121,53 @@ public class EbayParserService {
                     }
                 }
 
-                if (targetSku.isEmpty()) {
-                    actionableSuspense.add(buildSuspenseRow(auditRow, "Cannot determine target SKU for unanchored " + type + " record."));
-                    continue;
+                String compositeId = "";
+                ReconciliationRecord record = null;
+
+                // Try Primary Key (Cache -> DB) ONLY if we have a SKU
+                if (!targetSku.isEmpty()) {
+                    compositeId = orderNumber + "-" + targetSku;
+                    auditRow.setCompositeId(compositeId);
+
+                    record = recordsToUpdate.get(compositeId);
+                    if (record == null) {
+                        Optional<ReconciliationRecord> dbRecord = repository.findById(compositeId);
+                        if (dbRecord.isPresent()) record = dbRecord.get();
+                    }
                 }
 
-                // Locate the Anchor Record (Cache -> DB -> Fallback)
-                String compositeId = orderNumber + "-" + targetSku;
-                auditRow.setCompositeId(compositeId);
-                ReconciliationRecord record = recordsToUpdate.get(compositeId);
-
+                // Cascading DB fallback (If pk failed or targetSku is STILL empty becuase it wasn't in the pass 1 map
                 if (record == null) {
-                    Optional<ReconciliationRecord> dbRecord = repository.findById(compositeId);
-                    if (dbRecord.isPresent()) {
-                        record = dbRecord.get();
+                    List<ReconciliationRecord> baseRecords = repository.findBySiteOrderId(orderNumber);
+
+                    if (baseRecords.isEmpty()) {
+                        actionableSuspense.add(buildSuspenseRow(auditRow, "Missing from Rithum base data."));
+                        continue;
+                    } else if (baseRecords.size() == 1) {
+                        // Fallback 1: Single-item order -> Auto-heal
+                        record = baseRecords.get(0);
                     } else {
-                        // Cascading DB fallback
-                        List<ReconciliationRecord> baseRecords = repository.findBySiteOrderId(orderNumber);
+                        // Fallback 2: Precise Match via eBay Site Listing ID
+                        ReconciliationRecord listingIdMatch = baseRecords.stream()
+                                .filter(r -> itemId.equals(r.getSiteListingId()))
+                                .findFirst()
+                                .orElse(null);
 
-                        if (baseRecords.isEmpty()) {
-                            actionableSuspense.add(buildSuspenseRow(auditRow, "Missing from Rithum base data."));
-                            continue;
-                        } else if (baseRecords.size() == 1) {
-                            // Fallback 1: Single-item order -> Auto-heal
-                            record = baseRecords.get(0);
+                        if (listingIdMatch != null) {
+                            record = listingIdMatch;
                         } else {
-                            // Fallback 2: Precise Match via eBay Site Listing ID
-                            ReconciliationRecord listingIdMatch = baseRecords.stream()
-                                    .filter(r -> itemId.equals(r.getSiteListingId()))
-                                    .findFirst()
-                                    .orElse(null);
-
-                            if (listingIdMatch != null) {
-                                record = listingIdMatch;
-                            } else {
-                                // Could add third fallback: fuzzy title match
-                                actionableSuspense.add(buildSuspenseRow(auditRow, "Ambigious match: Rithum data missing SKU, and all fallback matches failed."));
-                                continue;
-                            }
+                            // Could add third fallback: fuzzy title match
+                            actionableSuspense.add(buildSuspenseRow(auditRow, "Ambigious match: Rithum data missing SKU, and all fallback matches failed."));
+                            continue;
                         }
+                    }
 
-                        // Auto-heal Rithum Record
+                    // Auto-heal Rithum Record (Only if we have a targetSku to heal it with
+                    if (!targetSku.isEmpty() && !targetSku.equals(record.getSiteOrderItemId())) {
                         String oldCompositeId = record.getCompositeId();
                         ReconciliationRecord healedRecord = new ReconciliationRecord();
                         BeanUtils.copyProperties(record, healedRecord);
+
                         healedRecord.setSku(targetSku);
                         healedRecord.setCompositeId(compositeId);
 
@@ -172,6 +175,8 @@ public class EbayParserService {
                         recordsToDelete.add(record);
                         record = healedRecord;
                     }
+
+                    auditRow.setCompositeId(record.getCompositeId());
                 }
 
                 recordsToUpdate.put(record.getCompositeId(), record);
@@ -275,6 +280,12 @@ public class EbayParserService {
 
     private double zeroIfNull(Double value) {
         return value != null ? value: 0.0;
+    }
+
+    private String cleanEbayString(String value) {
+        if (value == null) return "";
+        String trimmed = value.trim();
+        return  trimmed.equals("--") ? "" : trimmed;
     }
 
     private EbayRawTransaction buildAuditRow(Row row, Map<EbayColumn, Integer> headerMap) {
