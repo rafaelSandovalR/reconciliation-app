@@ -218,7 +218,7 @@ public class EbayParserService {
 
                     }
                     case "REFUND" -> {
-                        if (description.contains("RETURN")){
+                        if (referenceId.toUpperCase().contains("RETURN")){
                             record.setReturnStatus("Yes");
                         }
                         record.setAmountRefunded(zeroIfNull(record.getAmountRefunded()) + grossTransactionAmount);
