@@ -7,9 +7,12 @@ import com.apex.reconciliation_app.model.tiktok.TikTokTransactionData;
 import org.apache.poi.ss.usermodel.Row;
 import org.springframework.stereotype.Service;
 
+import java.time.format.DateTimeFormatter;
+
 @Service
 public class TikTokReportService extends AbstractReportService<TikTokSuspense, TikTokRawTransaction, TikTokColumn> {
 
+    private static final DateTimeFormatter TIKTOK_FORMATTER = DateTimeFormatter.ofPattern("yyyy/MM/dd");
 
     @Override
     protected Class<TikTokColumn> getColumnEnumClass() {
@@ -34,7 +37,7 @@ public class TikTokReportService extends AbstractReportService<TikTokSuspense, T
     }
 
     private void writeCommonData(Row row, TikTokTransactionData record, int col) {
-        setCellValue(row.createCell(col++), record.getStatementDate() != null ? record.getStatementDate().format(formatter) : null);
+        setCellValue(row.createCell(col++), record.getStatementDate() != null ? record.getStatementDate().format(TIKTOK_FORMATTER) : null);
         setCellValue(row.createCell(col++), record.getStatementId());
         setCellValue(row.createCell(col++), record.getPaymentId());
         setCellValue(row.createCell(col++), record.getStatus());
@@ -45,9 +48,9 @@ public class TikTokReportService extends AbstractReportService<TikTokSuspense, T
         setCellValue(row.createCell(col++), record.getQuantity());
         setCellValue(row.createCell(col++), record.getProductName());
         setCellValue(row.createCell(col++), record.getSkuName());
-        setCellValue(row.createCell(col++), record.getOrderCreatedDate()!= null ? record.getOrderCreatedDate().format(formatter) : null);
-        setCellValue(row.createCell(col++), record.getOrderShipmentDate()!= null ? record.getOrderShipmentDate().format(formatter) : null);
-        setCellValue(row.createCell(col++), record.getOrderDeliveryDate()!= null ? record.getOrderDeliveryDate().format(formatter) : null);
+        setCellValue(row.createCell(col++), record.getOrderCreatedDate()!= null ? record.getOrderCreatedDate().format(TIKTOK_FORMATTER) : null);
+        setCellValue(row.createCell(col++), record.getOrderShipmentDate()!= null ? record.getOrderShipmentDate().format(TIKTOK_FORMATTER) : null);
+        setCellValue(row.createCell(col++), record.getOrderDeliveryDate()!= null ? record.getOrderDeliveryDate().format(TIKTOK_FORMATTER) : null);
         setCellValue(row.createCell(col++), record.getTotalSettlementAmount());
         setCellValue(row.createCell(col++), record.getNetSales());
         setCellValue(row.createCell(col++), record.getGrossSales());
