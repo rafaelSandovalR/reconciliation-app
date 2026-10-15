@@ -18,6 +18,8 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
 import java.io.InputStream;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 @Service
@@ -27,6 +29,9 @@ public class TikTokParserService {
     private final ReconciliationRepository repository;
     private final TikTokRawTransactionRepository auditRepository;
     private final TikTokSuspenseRepository suspenseRepository;
+
+    private static final DateTimeFormatter TIKTOK_DATE_FORMATTER =
+            DateTimeFormatter.ofPattern("yyyy/MM/dd");
 
     public MarketplaceParseResult<TikTokSuspense, TikTokRawTransaction> parseAndUpdate(InputStream inputStream) {
         try (Workbook workbook = new XSSFWorkbook(inputStream)) {
@@ -228,9 +233,30 @@ public class TikTokParserService {
         return value != null ? value: 0.0;
     }
 
+    private LocalDateTime parseTikTokDate(Row row, Map<TikTokColumn, Integer> headerMap, TikTokColumn col) {
+        LocalDateTime excelDate = ExcelUtils.getDateSafe(row, headerMap, col);
+        if (excelDate != null) return excelDate;
+
+        String dateStr = ExcelUtils.getStringSafe(row, headerMap, col);
+        if (dateStr != null && !dateStr.trim().isEmpty()) {
+            if (dateStr.trim().equals("/")) return null;
+            try {
+                if (dateStr.contains(" ")) {
+                    DateTimeFormatter formatterWithTime = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss");
+                    return LocalDateTime.parse(dateStr.trim(), formatterWithTime);
+                } else {
+                    return java.time.LocalDate.parse(dateStr.trim(), TIKTOK_DATE_FORMATTER).atStartOfDay();
+                }
+            } catch (Exception e) {
+                return null;
+            }
+        }
+        return null;
+    }
+
     private TikTokRawTransaction buildAuditRow(Row row, Map<TikTokColumn, Integer> headerMap) {
         return TikTokRawTransaction.builder()
-                .statementDate(ExcelUtils.getDateSafe(row, headerMap, TikTokColumn.STATEMENT_DATE))
+                .statementDate(parseTikTokDate(row, headerMap, TikTokColumn.STATEMENT_DATE))
                 .statementId(ExcelUtils.getStringSafe(row, headerMap, TikTokColumn.STATEMENT_ID))
                 .paymentId(ExcelUtils.getStringSafe(row, headerMap, TikTokColumn.PAYMENT_ID))
                 .status(ExcelUtils.getStringSafe(row, headerMap, TikTokColumn.STATUS))
@@ -241,9 +267,9 @@ public class TikTokParserService {
                 .quantity(ExcelUtils.getDoubleSafe(row, headerMap, TikTokColumn.QUANTITY))
                 .productName(ExcelUtils.getStringSafe(row, headerMap, TikTokColumn.PRODUCT_NAME))
                 .skuName(ExcelUtils.getStringSafe(row, headerMap, TikTokColumn.SKU_NAME))
-                .orderCreatedDate(ExcelUtils.getDateSafe(row, headerMap, TikTokColumn.ORDER_CREATED_DATE))
-                .orderShipmentDate(ExcelUtils.getDateSafe(row, headerMap, TikTokColumn.ORDER_SHIPMENT_DATE))
-                .orderDeliveryDate(ExcelUtils.getDateSafe(row, headerMap, TikTokColumn.ORDER_DELIVERY_DATE))
+                .orderCreatedDate(parseTikTokDate(row, headerMap, TikTokColumn.ORDER_CREATED_DATE))
+                .orderShipmentDate(parseTikTokDate(row, headerMap, TikTokColumn.ORDER_SHIPMENT_DATE))
+                .orderDeliveryDate(parseTikTokDate(row, headerMap, TikTokColumn.ORDER_DELIVERY_DATE))
                 .totalSettlementAmount(ExcelUtils.getDoubleSafe(row, headerMap, TikTokColumn.TOTAL_SETTLEMENT_AMOUNT))
                 .netSales(ExcelUtils.getDoubleSafe(row, headerMap, TikTokColumn.NET_SALES))
                 .grossSales(ExcelUtils.getDoubleSafe(row, headerMap, TikTokColumn.GROSS_SALES))
