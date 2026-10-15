@@ -59,11 +59,21 @@ public class RithumParserService {
 
                 // Skip if BOTH order identifiers are missing, OR if the SKU is missing
                 if ((isSiteOrderBlank && isMerchantRefBlank) || isSkuBlank) {
+                    // TODO: Handle these errors by creating an error report
                     continue;
                 }
                 String orderId = (siteName != null && siteName.contains("eBay")) ?
                         record.getMerchantReferenceNumber() :
                         record.getSiteOrderId();
+
+                if (siteName != null && siteName.contains("TikTok")) {
+                    String buyer = record.getBuyer();
+                    if (buyer != null && buyer.contains("@")) {
+                        orderId = buyer.split("@")[0].trim();
+                        record.setSiteOrderId(orderId);
+                    }
+                }
+
                 String compositeId = (siteName != null && siteName.contains("Temu")) ?
                         orderId + "-" + record.getSiteOrderItemId() :
                         orderId + "-" + sku;
