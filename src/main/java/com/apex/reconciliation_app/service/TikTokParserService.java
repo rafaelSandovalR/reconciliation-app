@@ -53,6 +53,15 @@ public class TikTokParserService {
                 String orderId = cleanTikTokString(auditRow.getOrderAdjustmentId());
                 String skuId = cleanTikTokString(auditRow.getSkuId());
 
+                // Generate IDs immediately
+                double totalSettlement = zeroIfNull(auditRow.getTotalSettlementAmount());
+                String statementDateStr = auditRow.getStatementDate() != null ? auditRow.getStatementDate().toString() : "";
+                String compositeTransactionId = String.format("%s-%s-%s-%.2f", statementDateStr, orderId, skuId, totalSettlement);
+                auditRow.setCompositeTransactionId(compositeTransactionId);
+
+                String tiktokKey = orderId + "-" + skuId;
+                auditRow.setCompositeId(tiktokKey); // Temporary ID for Suspense/Audit if DB lookup fails
+
                 // Filter irrelevant rows
                 if (!"Order".equalsIgnoreCase(type)) {
                     errorSuspense.add(buildSuspenseRow(auditRow, "Non-order line item"));
@@ -63,7 +72,6 @@ public class TikTokParserService {
                 }
 
                 // Filter zero-value rows
-                double totalSettlement = zeroIfNull(auditRow.getTotalSettlementAmount());
                 double grossSales = zeroIfNull(auditRow.getGrossSales());
                 double grossRefund = zeroIfNull(auditRow.getGrossSalesRefund());
                 double shipping = zeroIfNull(auditRow.getShipping());
@@ -75,11 +83,6 @@ public class TikTokParserService {
                 }
 
                 // Idempotency Check
-                String statementDateStr = auditRow.getStatementDate() != null ? auditRow.getStatementDate().toString() : "";
-                String compositeTransactionId = String.format("%s-%s-%s-%.2f",
-                        statementDateStr, orderId, skuId, totalSettlement);
-                auditRow.setCompositeTransactionId(compositeTransactionId);
-
                 if (processedLineIds.contains(compositeTransactionId)) {
                     errorSuspense.add(buildSuspenseRow(auditRow, "Duplicate record in upload file"));
                     continue;
@@ -95,7 +98,6 @@ public class TikTokParserService {
 
                 // Cascading database fallback & auto-heal
                 ReconciliationRecord record = null;
-                String tiktokKey = orderId + "-" + skuId;
                 String rithumCompositeId = tiktokToRithumIdMap.get(tiktokKey);
 
                 // Cache check
@@ -186,6 +188,8 @@ public class TikTokParserService {
                         record.setCommissionRefund(zeroIfNull(record.getCommissionRefund()) + trueForwardFees);
                     }
                 }
+
+                auditTrail.add(auditRow);
             }
 
             for (ReconciliationRecord record : recordsToUpdate.values()) {
