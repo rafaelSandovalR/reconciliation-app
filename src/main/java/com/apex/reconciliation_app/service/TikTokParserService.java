@@ -77,11 +77,6 @@ public class TikTokParserService {
                 double shipping = zeroIfNull(auditRow.getShipping());
                 double fees = zeroIfNull(auditRow.getFees());
 
-                if (totalSettlement == 0 && grossSales == 0 && grossRefund == 0 && shipping == 0 && fees == 0) {
-                    auditTrail.add(auditRow);
-                    continue;
-                }
-
                 // Idempotency Check
                 if (processedLineIds.contains(compositeTransactionId)) {
                     errorSuspense.add(buildSuspenseRow(auditRow, "Duplicate record in upload file"));
@@ -94,7 +89,11 @@ public class TikTokParserService {
                     continue;
                 }
 
-                String constructedTitle = buildConstructedTitle(auditRow.getProductName(), auditRow.getSkuName());
+                String productName = auditRow.getProductName() != null ? auditRow.getProductName() : "";
+                String size = "";
+                if (auditRow.getSkuName() != null) {
+                    size =auditRow.getSkuName().split(",")[0].trim();
+                }
 
                 // Cascading database fallback & auto-heal
                 ReconciliationRecord record = null;
@@ -115,17 +114,21 @@ public class TikTokParserService {
                     } else if (baseRecords.size() == 1) {
                         record = baseRecords.get(0);
                     } else {
-                        // Fuzzy title match for multi-item orders
-                        List<ReconciliationRecord> titleMatches = new ArrayList<>();
+                        // Fuzzy title match: Find the highest score above 80 %
+                        ReconciliationRecord bestMatch = null;
+                        double highestScore = 0.0;
                         for (ReconciliationRecord br : baseRecords) {
-                            if (br.getTitle() != null && !constructedTitle.isEmpty() && br.getTitle().contains(constructedTitle)) {
-                                titleMatches.add(br);
+                            double score = calculateFuzzyScore(br.getTitle(), productName, size);
+                            if (score >= 0.80 && score > highestScore) {
+                                highestScore = score;
+                                bestMatch = br;
                             }
                         }
-                        if (titleMatches.size() == 1) {
-                            record = titleMatches.get(0);
+
+                        if (bestMatch != null) {
+                            record = bestMatch;
                         } else {
-                            actionableSuspense.add(buildSuspenseRow(auditRow, "Ambigious match: Fuzzy title match failed."));
+                            actionableSuspense.add(buildSuspenseRow(auditRow, "Ambiguous match: No available base record met the 80% fuzzy threshold."));
                             continue;
                         }
                     }
@@ -214,13 +217,26 @@ public class TikTokParserService {
         }
     }
 
-    private String buildConstructedTitle(String productName, String skuName) {
-        String cleanProd = productName != null ? productName.replaceAll("\\s+", " ").trim() : "";
-        String size = "";
-        if (skuName != null) {
-            size = skuName.split(",")[0].trim();
+    private double calculateFuzzyScore(String rithumTitle, String productName, String size) {
+        if (rithumTitle == null || productName == null) return 0.0;
+
+        String target = rithumTitle.toLowerCase();
+
+        // Size gatekeeper
+        if (!size.isEmpty() && !target.contains(size.toLowerCase())) {
+            return 0.0;
         }
-        return (cleanProd + " Size " + size).trim();
+
+        String cleanProd = productName.replaceAll("\\s+", " ").trim();
+        String[] words = cleanProd.toLowerCase().split("\\s+");
+
+        int matchCount = 0;
+        for (String word : words) {
+            if (target.contains(word)) {
+                matchCount++;
+            }
+        }
+        return words.length > 0 ? ((double) matchCount / words.length) : 0.0;
     }
 
     private String cleanTikTokString(String value) {
