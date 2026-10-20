@@ -117,7 +117,11 @@ public class TikTokParserService {
                         // Fuzzy title match: Find the highest score above 80 %
                         ReconciliationRecord bestMatch = null;
                         double highestScore = 0.0;
+
                         for (ReconciliationRecord br : baseRecords) {
+                            // Skip records we've already claimed for a previous row
+                            if (recordsToUpdate.containsKey(br.getCompositeId())) continue;
+
                             double score = calculateFuzzyScore(br.getTitle(), productName, size);
                             if (score >= 0.80 && score > highestScore) {
                                 highestScore = score;
