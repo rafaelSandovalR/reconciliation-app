@@ -181,21 +181,21 @@ public class TikTokParserService {
                     record.setReturnStatus("Yes");
                     record.setAmountRefunded(zeroIfNull(record.getAmountRefunded()) + (grossRefund * -1));
 
-                    record.setReturnShipping(zeroIfNull(record.getReturnShipping()) + (invertedReturnShipping + invertedReturnLabel));
-                    record.addDynamicReturnFee(invertedReturnShipReimbursement, "RETURN SHIPPING FEE REIMBURSEMENT");
-                    record.addDynamicReturnFee(invertedReturnShippingPaidByCustomer, "RETURN SHIPPING PAID BY CUSTOMER");
-
-                    record.addDynamicReturnFee(refundAdminFee, "REFUND ADMINISTRATION FEE");
-                    record.addDynamicReturnFee(affiliateCommissionRefund, "AFFILIATE COMMISSION REFUND");
-
                     // Handle Refund-Only rows where commission is fully returned
                     if (grossSales == 0) {
-                        // TODO: Check if this is correct
                         record.setReturnShipping(zeroIfNull(record.getReturnShipping()) + trueForwardShipping);
                         record.setCommissionRefund(zeroIfNull(record.getCommissionRefund()) + trueForwardFees);
                     }
                 }
 
+                // Isolated Return Expenses (Runs on every row type)
+                record.setReturnShipping(zeroIfNull(record.getReturnShipping()) + (invertedReturnShipping + invertedReturnLabel));
+                record.addDynamicReturnFee(invertedReturnShipReimbursement, "RETURN SHIPPING FEE REIMBURSEMENT");
+                record.addDynamicReturnFee(invertedReturnShippingPaidByCustomer, "RETURN SHIPPING PAID BY CUSTOMER");
+                record.addDynamicReturnFee(refundAdminFee, "REFUND ADMINISTRATION FEE");
+                record.addDynamicReturnFee(affiliateCommissionRefund, "AFFILIATE COMMISSION REFUND");
+
+                // Catch-all Pure Adjustments
                 if (grossSales == 0 && grossRefund == 0) {
                     if (trueForwardShipping != 0) {
                         // Toggle: use dedicated column first, overflow to dynamic fees
