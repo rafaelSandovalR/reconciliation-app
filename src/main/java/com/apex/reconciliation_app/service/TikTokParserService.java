@@ -191,10 +191,16 @@ public class TikTokParserService {
                 // Isolated Return Expenses (Runs on every row type)
                 double currentRowReturnShipping = invertedReturnShipping + invertedReturnLabel;
                 if (currentRowReturnShipping != 0) {
-                    if (zeroIfNull(record.getReturnShipping()) == 0) {
+                    double existingReturnShipping = zeroIfNull(record.getReturnShipping());
+                    if (existingReturnShipping == 0) {
                         record.setReturnShipping(currentRowReturnShipping);
                     } else {
-                        record.addDynamicReturnFee(currentRowReturnShipping, "RETURN SHIPPING FEE ADJUSTMENT");
+                        record.setReturnShipping(existingReturnShipping + currentRowReturnShipping);
+                        String newNote = "Note: MERGED SUPPLEMENTAL RETURN SHIPPING, ";
+                        String currentNotes = record.getNotes() != null ? record.getNotes() : "";
+                        if (!currentNotes.contains(newNote)) {
+                            record.setNotes((currentNotes  + newNote));
+                        }
                     }
                 }
                 record.addDynamicReturnFee(invertedReturnShipReimbursement, "RETURN SHIPPING FEE REIMBURSEMENT");
