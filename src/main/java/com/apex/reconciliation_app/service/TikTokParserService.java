@@ -189,7 +189,14 @@ public class TikTokParserService {
                 }
 
                 // Isolated Return Expenses (Runs on every row type)
-                record.setReturnShipping(zeroIfNull(record.getReturnShipping()) + (invertedReturnShipping + invertedReturnLabel));
+                double currentRowReturnShipping = invertedReturnShipping + invertedReturnLabel;
+                if (currentRowReturnShipping != 0) {
+                    if (zeroIfNull(record.getReturnShipping()) == 0) {
+                        record.setReturnShipping(currentRowReturnShipping);
+                    } else {
+                        record.addDynamicReturnFee(currentRowReturnShipping, "RETURN SHIPPING FEE ADJUSTMENT");
+                    }
+                }
                 record.addDynamicReturnFee(invertedReturnShipReimbursement, "RETURN SHIPPING FEE REIMBURSEMENT");
                 record.addDynamicReturnFee(invertedReturnShippingPaidByCustomer, "RETURN SHIPPING PAID BY CUSTOMER");
                 record.addDynamicReturnFee(refundAdminFee, "REFUND ADMINISTRATION FEE");
