@@ -15,7 +15,9 @@ public class ReconciliationRecord {
 
     // Rithum Base Data
     private String siteName;
+    private String buyer;
     private String sku;
+    private String title;
     private String siteOrderId;
     private String siteOrderItemId;
     private String orderDate;
@@ -60,6 +62,7 @@ public class ReconciliationRecord {
     private String notes;
 
     public void addDynamicRegularFee(double amount, String amountType) {
+        if (amount == 0) return;
         if (this.siteOrderOtherFees1 == null || this.siteOrderOtherFees1 == 0) {
             this.siteOrderOtherFees1 = amount;
         } else if (this.siteOrderOtherFees2 == null || this.siteOrderOtherFees2 == 0) {
@@ -77,6 +80,7 @@ public class ReconciliationRecord {
     }
 
     public void addDynamicReturnFee(double amount, String amountType) {
+        if (amount == 0) return;
         if (this.returnFee1 == null || this.returnFee1 == 0) {
             this.returnFee1 = amount;
         } else if (this.returnFee2 == null || this.returnFee2 == 0) {
@@ -101,9 +105,11 @@ public class ReconciliationRecord {
         }
 
         double originalCommission = this.getSiteOrderFee();
-        double commissionRefundDifference = originalCommission + this.getCommissionRefund();
-        if (commissionRefundDifference != 0){
-            addDynamicReturnFee(commissionRefundDifference, "COMMISSION DELTA");
+        double rawDelta = originalCommission + this.getCommissionRefund();
+        double delta = Math.round(rawDelta * 100.0) / 100.0;
+
+        if (delta != 0){
+            addDynamicReturnFee(delta, "COMMISSION DELTA");
         }
     }
 }
