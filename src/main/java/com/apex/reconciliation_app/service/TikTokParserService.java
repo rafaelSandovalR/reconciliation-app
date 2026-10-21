@@ -196,6 +196,20 @@ public class TikTokParserService {
                     }
                 }
 
+                if (grossSales == 0 && grossRefund == 0) {
+                    if (trueForwardShipping != 0) {
+                        // Toggle: use dedicated column first, overflow to dynamic fees
+                        if (zeroIfNull(record.getShippingAdjustments()) == 0){
+                            record.setShippingAdjustments(trueForwardShipping);
+                        } else {
+                            record.addDynamicRegularFee(trueForwardShipping, "SHIPPING ADJUSTMENT");
+                        }
+                    }
+                    if (trueForwardFees != 0) {
+                        record.addDynamicRegularFee(trueForwardFees, "FEE ADJUSTMENT");
+                    }
+                }
+
                 auditTrail.add(auditRow);
             }
 
