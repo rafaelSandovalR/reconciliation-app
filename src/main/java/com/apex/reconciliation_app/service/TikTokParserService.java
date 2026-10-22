@@ -173,7 +173,7 @@ public class TikTokParserService {
                 // Math Routing
                 if (grossSales != 0) {
                     record.setSiteOrderAmount(zeroIfNull(record.getSiteOrderAmount()) + grossSales);
-                    record.setActualShippingCosts(zeroIfNull(record.getActualShippingCosts()) + trueForwardShipping);
+                    record.setActualShippingCost(zeroIfNull(record.getActualShippingCost()) + trueForwardShipping);
                     record.setSiteOrderFee(zeroIfNull(record.getSiteOrderFee()) + trueForwardFees);
                 }
 
