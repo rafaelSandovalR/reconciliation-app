@@ -6,6 +6,7 @@ import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.DateUtil;
 import org.apache.poi.ss.usermodel.Row;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -13,6 +14,9 @@ import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+
+import static org.apache.poi.ss.usermodel.CellType.NUMERIC;
+import static org.apache.poi.ss.usermodel.CellType.STRING;
 
 public class ExcelUtils {
 
@@ -22,6 +26,25 @@ public class ExcelUtils {
     }
 
     // --- SAFE DATA EXTRACTION HELPERS ---
+
+    public static LocalDateTime getDateValue(Cell cell) {
+        if (cell == null) return null;
+        // Handle native excel date cells
+        if (cell.getCellType() == NUMERIC && DateUtil.isCellDateFormatted(cell)) return cell.getLocalDateTimeCellValue();
+
+        if (cell.getCellType() == STRING) {
+            String strVal = cell.getStringCellValue().trim();
+            if (strVal.isEmpty()) return null;
+            try {
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("M/d/yyyy");
+                return LocalDate.parse(strVal, formatter).atStartOfDay();
+            } catch (Exception e) {
+                return null;
+            }
+        }
+        return null;
+    }
+
     public static String getStringValue(Cell cell) {
         if (cell == null) return "";
         return switch (cell.getCellType()) {
@@ -44,7 +67,7 @@ public class ExcelUtils {
         return switch (cell.getCellType()) {
             case NUMERIC -> cell.getNumericCellValue();
             case FORMULA -> {
-                if (cell.getCachedFormulaResultType() == CellType.NUMERIC) {
+                if (cell.getCachedFormulaResultType() == NUMERIC) {
                     yield cell.getNumericCellValue();
                 } else if (cell.getCachedFormulaResultType() == CellType.STRING) {
                     try {
@@ -99,7 +122,7 @@ public class ExcelUtils {
         if (cell == null || cell.getCellType() == CellType.BLANK) return null;
 
         // Handle native excel format
-        if (cell.getCellType() == CellType.NUMERIC && DateUtil.isCellDateFormatted(cell)) {
+        if (cell.getCellType() == NUMERIC && DateUtil.isCellDateFormatted(cell)) {
             return cell.getLocalDateTimeCellValue();
         } else if (cell.getCellType() == CellType.STRING) {
             // Handle plain-text format

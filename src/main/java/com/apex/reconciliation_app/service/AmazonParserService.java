@@ -156,7 +156,7 @@ public class AmazonParserService {
                         case "SHIPPING SERVICES" -> {
                             switch (description) {
                                 case "SHIPPING LABEL PURCHASED THROUGH AMAZON" ->
-                                        record.setActualShippingCosts((record.getActualShippingCosts() != null ? record.getActualShippingCosts() : 0.0) + splitOther);
+                                        record.setActualShippingCost((record.getActualShippingCost() != null ? record.getActualShippingCost() : 0.0) + splitOther);
 
                                 case "ADJUSTMENT" -> {
                                     // If the bucket already has money in it, this is a multiple!

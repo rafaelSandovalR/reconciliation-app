@@ -266,7 +266,7 @@ public class TemuParserService {
                 for (ReconciliationRecord record : validRecordsToUpdate) {
                     switch (type) {
                         case "SHIPPING LABEL PURCHASE" -> {
-                            record.setActualShippingCosts(zeroIfNull(record.getActualShippingCosts()) + splitAmount);
+                            record.setActualShippingCost(zeroIfNull(record.getActualShippingCost()) + splitAmount);
                         }
                         case "SHIPPING LABEL PURCHASE ADJUSTMENT" -> {
                             record.setShippingAdjustments(zeroIfNull(record.getShippingAdjustments()) + splitAmount);
