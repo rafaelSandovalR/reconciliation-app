@@ -43,6 +43,4 @@ public interface EbayTransactionData {
     Double getExchangeRate();
     String getReferenceId();
     String getDescription();
-
-
 }

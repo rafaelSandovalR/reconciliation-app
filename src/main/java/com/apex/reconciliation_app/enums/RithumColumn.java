@@ -46,7 +46,7 @@ public enum RithumColumn implements ExcelColumn{
     SITE_LISTING_ID("Site Listing ID",
             (record, cell) -> record.setSiteListingId(ExcelUtils.getStringValue(cell)),
             ReconciliationRecord::getSiteListingId),
-    CHANNELADVISOR_ORDER_ID("ChannelAdvisor Order ID",
+    CHANNEL_ADVISOR_ORDER_ID("ChannelAdvisor Order ID",
             (record, cell) -> record.setChannelAdvisorOrderId(ExcelUtils.getStringValue(cell)),
             ReconciliationRecord::getChannelAdvisorOrderId),
     BUYER_CREDIT_CARD("Buyer Credit Card",
@@ -288,8 +288,8 @@ public enum RithumColumn implements ExcelColumn{
     RETURN_FEE2("ReturnFee2", null, ReconciliationRecord::getReturnFee2),
     RETURN_FEE3("ReturnFee3", null, ReconciliationRecord::getReturnFee3),
     RETURN_FEE4("ReturnFee4", null, ReconciliationRecord::getReturnFee4),
-    NOTES("Notes", null, ReconciliationRecord::getNotes),
-    COMMISSION_REFUND("Commission Refund", null, ReconciliationRecord::getCommissionRefund);
+    NOTES("Notes", null, ReconciliationRecord::getNotes);
+    // COMMISSION_REFUND("Commission Refund", null, ReconciliationRecord::getCommissionRefund);
 
     private final String headerName;
     private final BiConsumer<ReconciliationRecord, Cell> setter;
