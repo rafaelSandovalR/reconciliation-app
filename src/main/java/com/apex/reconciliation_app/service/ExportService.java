@@ -4,10 +4,7 @@ import com.apex.reconciliation_app.enums.RithumColumn;
 import com.apex.reconciliation_app.model.ReconciliationRecord;
 import com.apex.reconciliation_app.repository.ReconciliationRepository;
 import lombok.RequiredArgsConstructor;
-import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
 
@@ -16,6 +13,7 @@ import java.io.ByteArrayOutputStream;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
@@ -32,6 +30,9 @@ public class ExportService {
              ByteArrayOutputStream out = new ByteArrayOutputStream())
         {
             Sheet sheet = workbook.createSheet("Reconciliation Data");
+
+            CellStyle dateStyle = workbook.createCellStyle();
+            dateStyle.setDataFormat(workbook.getCreationHelper().createDataFormat().getFormat("m/d/yyyy h:mm"));
 
             // 3. Dynamically build header row from Enum
             Row headerRow = sheet.createRow(0);
@@ -57,7 +58,8 @@ public class ExportService {
                     } else if (value instanceof Integer) {
                         cell.setCellValue((Integer) value);
                     } else if (value instanceof LocalDateTime){
-                        cell.setCellValue((LocalDateTime) value);
+                        cell.setCellValue(((LocalDateTime) value));
+                        cell.setCellStyle(dateStyle);
                     } else if (value != null) {
                         cell.setCellValue(value.toString());
                     } else {
