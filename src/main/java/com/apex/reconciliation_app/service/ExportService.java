@@ -34,6 +34,9 @@ public class ExportService {
             CellStyle dateStyle = workbook.createCellStyle();
             dateStyle.setDataFormat(workbook.getCreationHelper().createDataFormat().getFormat("m/d/yyyy h:mm"));
 
+            CellStyle currencyStyle = workbook.createCellStyle();
+            currencyStyle.setDataFormat(workbook.getCreationHelper().createDataFormat().getFormat("$#,##0.00"));
+
             // 3. Dynamically build header row from Enum
             Row headerRow = sheet.createRow(0);
             int headerColIdx = 0;
@@ -55,6 +58,9 @@ public class ExportService {
                         cell.setCellValue((String)value);
                     } else if (value instanceof Double) {
                         cell.setCellValue((Double) value);
+                        if (column.isCurrency()) {
+                            cell.setCellStyle(currencyStyle);
+                        }
                     } else if (value instanceof Integer) {
                         cell.setCellValue((Integer) value);
                     } else if (value instanceof LocalDateTime){
